@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarIcon, ClockIcon, MapIcon, UsersIcon, RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
-import { format, parseISO, isAfter, isSameDay, parse } from "date-fns";
+import { format, parseISO, isAfter, isSameDay } from "date-fns";
 import { useDebounce } from "@/hooks/useDebounce";
 
 interface ScheduleItem {
@@ -199,7 +199,7 @@ export function ScheduleView() {
 
     return (
       <div className="space-y-4">
-        {filteredSchedules.map((schedule, index) => (
+        {filteredSchedules.map((schedule) => (
           <Card key={schedule.id} className="group hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 border-gray-700 bg-gradient-to-r from-gray-800 to-gray-850 hover:from-gray-750 hover:to-gray-800">
             <CardContent className="p-6">
               {/* Header with Date & Time */}

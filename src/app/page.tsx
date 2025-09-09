@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { PlusIcon, CalendarIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +16,7 @@ import { DatePicker, TimePicker, FraksiSelect, MapMultiSelect } from "@/componen
 import { ScheduleView } from "@/components/schedule-view";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { scrimFormSchema, type ScrimFormData } from "@/lib/validation";
+import Image from "next/image";
 
 export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -247,10 +248,13 @@ export default function Home() {
         {/* Header */}
         <div className="mb-6 sm:mb-8 text-center">
           <div className="flex justify-center mb-4">
-            <img 
+            <Image 
               src="/logo_REV.jpg" 
               alt="REV Logo" 
+              width={96}
+              height={96}
               className="h-24 w-auto"
+              priority
             />
           </div>
         </div>
