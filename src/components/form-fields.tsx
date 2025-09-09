@@ -1,0 +1,203 @@
+"use client";
+
+import { useState } from "react";
+import { CalendarIcon, ChevronDownIcon, Cross2Icon } from "@radix-ui/react-icons";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+interface DatePickerProps {
+  value?: Date;
+  onChange: (date: Date | undefined) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+export function DatePicker({ value, onChange, placeholder = "Pilih tanggal", disabled = false }: DatePickerProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          disabled={disabled}
+          className={cn(
+            "w-full justify-start text-left font-normal h-11",
+            !value && "text-gray-400",
+            disabled && "cursor-not-allowed opacity-50"
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {value ? format(value, "dd/MM/yyyy") : <span>{placeholder}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 z-50 bg-gray-700 border border-gray-600 shadow-lg rounded-lg" align="start" side="bottom">
+        <Calendar
+          mode="single"
+          selected={value}
+          onSelect={(date) => {
+            onChange(date);
+            setOpen(false);
+          }}
+          initialFocus
+          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+interface TimePickerProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+export function TimePicker({ value, onChange, placeholder = "HH:mm", disabled = false }: TimePickerProps) {
+  return (
+    <Input
+      type="time"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      disabled={disabled}
+      className="w-full h-11"
+      step="60"
+    />
+  );
+}
+
+interface FraksiSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}
+
+interface MapMultiSelectProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+  disabled?: boolean;
+}
+
+const MAP_OPTIONS = [
+  "Ascension",
+  "Threshold", 
+  "Cracked",
+  "Knife Edge",
+  "Trench Lines",
+  "Cyclone",
+  "Shafted",
+  "Trainwreck"
+];
+
+export function MapMultiSelect({ value, onChange, disabled = false }: MapMultiSelectProps) {
+  const [open, setOpen] = useState(false);
+
+  const handleSelect = (map: string) => {
+    if (value.includes(map)) {
+      onChange(value.filter(m => m !== map));
+    } else {
+      onChange([...value, map]);
+    }
+  };
+
+  const handleRemove = (map: string) => {
+    onChange(value.filter(m => m !== map));
+  };
+
+  return (
+    <div className="w-full">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div
+            role="combobox"
+            aria-expanded={open}
+            className="w-full h-auto min-h-11 border border-gray-600 bg-gray-700 text-white rounded-md px-3 py-2 cursor-pointer hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+            onClick={() => setOpen(!open)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setOpen(!open);
+              }
+            }}
+            tabIndex={disabled ? -1 : 0}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex flex-wrap gap-1 flex-1">
+                {value.length === 0 && (
+                  <span className="text-gray-400">Pilih map...</span>
+                )}
+                {value.map((map) => (
+                  <div
+                    key={map}
+                    className="bg-blue-600 text-white px-2 py-1 rounded-md text-sm flex items-center gap-1"
+                  >
+                    {map}
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemove(map);
+                      }}
+                      className="hover:bg-blue-700 rounded-full p-0.5 cursor-pointer"
+                    >
+                      <Cross2Icon className="h-3 w-3" />
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <ChevronDownIcon className="h-4 w-4 opacity-50 ml-2" />
+            </div>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-2 bg-gray-700 border border-gray-600 shadow-lg rounded-lg">
+          <div className="space-y-1">
+            {MAP_OPTIONS.map((map) => (
+              <div
+                key={map}
+                onClick={() => handleSelect(map)}
+                className={cn(
+                  "w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer text-white",
+                  value.includes(map)
+                    ? "bg-blue-600 text-white font-medium"
+                    : "hover:bg-gray-600"
+                )}
+              >
+                {map}
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+export function FraksiSelect({ value, onChange, disabled = false }: FraksiSelectProps) {
+  return (
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger className="w-full h-11">
+        <SelectValue placeholder="Pilih fraksi tim..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="Fraksi 1">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+            Fraksi 1
+          </div>
+        </SelectItem>
+        <SelectItem value="Fraksi 2">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            Fraksi 2
+          </div>
+        </SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
