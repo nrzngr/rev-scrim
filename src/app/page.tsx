@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker, TimePicker, FraksiSelect, MapMultiSelect } from "@/components/form-fields";
 import { ScheduleView } from "@/components/schedule-view";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { scrimFormSchema, type ScrimFormData } from "@/lib/validation";
 
 export default function Home() {
@@ -30,17 +31,30 @@ export default function Home() {
     },
   });
 
-  const onSubmit = async (data: ScrimFormData) => {
+  const onSubmit = useCallback(async (data: ScrimFormData) => {
+    if (isSubmitting) return; // Prevent double submission
+    
     setIsSubmitting(true);
     
     try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      
       const response = await fetch("/api/sheets/append", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const result = await response.json();
 
@@ -52,11 +66,20 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Error submitting form:", error);
-      toast.error("Terjadi kesalahan jaringan. Silakan coba lagi.");
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          toast.error("Permintaan terlalu lama. Silakan coba lagi.");
+        } else {
+          toast.error("Terjadi kesalahan jaringan. Silakan coba lagi.");
+        }
+      } else {
+        toast.error("Terjadi kesalahan tidak dikenal. Silakan coba lagi.");
+      }
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [isSubmitting, form]);
 
   const ScrimForm = () => (
     <div className="space-y-8">
@@ -264,11 +287,15 @@ export default function Home() {
             </div>
             
             <TabsContent value="input" className="space-y-6 mt-0">
-              <ScrimForm />
+              <ErrorBoundary>
+                <ScrimForm />
+              </ErrorBoundary>
             </TabsContent>
             
             <TabsContent value="schedule" className="space-y-6 mt-0">
-              <ScheduleView />
+              <ErrorBoundary>
+                <ScheduleView />
+              </ErrorBoundary>
             </TabsContent>
           </Tabs>
         </div>

@@ -4,9 +4,11 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarIcon, ClockIcon, MapIcon, UsersIcon, RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, isAfter, isSameDay, parse } from "date-fns";
+import { useDebounce } from "@/hooks/useDebounce";
 
 interface ScheduleItem {
   id: number;
@@ -78,10 +80,14 @@ export function ScheduleView() {
     }
   };
 
-  const handleRefresh = async () => {
+  // Debounced refresh to prevent multiple rapid calls
+  const debouncedFetchData = useDebounce(fetchScheduleData, 500);
+  
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return; // Prevent multiple simultaneous refreshes
     setRefreshing(true);
-    await fetchScheduleData();
-  };
+    await debouncedFetchData();
+  }, [refreshing, debouncedFetchData]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -283,29 +289,56 @@ export function ScheduleView() {
           </div>
         </div>
 
-        {/* Enhanced Loading State */}
-        <div className="text-center py-16">
-          <div className="max-w-md mx-auto">
-            {/* Loading Animation */}
-            <div className="mb-6">
-              <div className="relative">
-                <div className="w-20 h-20 border-4 border-gray-700 rounded-full mx-auto mb-4"></div>
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-20 border-4 border-transparent border-t-blue-400 rounded-full animate-spin"></div>
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-16 border-4 border-transparent border-t-purple-400 rounded-full animate-spin animation-delay-300"></div>
-              </div>
-            </div>
-
-            {/* Loading Text */}
-            <h3 className="text-xl font-semibold text-white mb-2">Memuat Jadwal Scrim</h3>
-            <p className="text-gray-400 mb-6">
-              Mengambil data terbaru dari server...
-            </p>
-
-            {/* Loading Progress Dots */}
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse animation-delay-150"></div>
-              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse animation-delay-300"></div>
+        {/* Enhanced Loading State with Skeletons */}
+        <div className="space-y-4">
+          {/* Skeleton Tabs */}
+          <div className="grid w-full grid-cols-2 mb-8 h-14 bg-gray-800 border border-gray-700 rounded-lg p-1">
+            <Skeleton className="h-12 rounded-md" />
+            <Skeleton className="h-12 rounded-md" />
+          </div>
+          
+          {/* Skeleton Cards */}
+          {[1, 2, 3].map((index) => (
+            <Card key={index} className="border-gray-700 bg-gradient-to-r from-gray-800 to-gray-850">
+              <CardContent className="p-6">
+                {/* Header skeleton */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="w-10 h-10 rounded-lg" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+                
+                {/* VS Section skeleton */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="w-8 h-8 rounded-full" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <Skeleton className="w-12 h-12 rounded-full" />
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="w-8 h-8 rounded-full" />
+                  </div>
+                </div>
+                
+                {/* Footer skeleton */}
+                <div className="pt-4 border-t border-gray-700">
+                  <Skeleton className="h-4 w-48" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          
+          {/* Loading indicator */}
+          <div className="text-center py-8">
+            <div className="flex items-center justify-center gap-2 text-gray-400">
+              <RefreshCwIcon className="h-4 w-4 animate-spin" />
+              <span>Memuat jadwal scrim...</span>
             </div>
           </div>
         </div>
