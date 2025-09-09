@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const targetTab = fraksi as "Fraksi 1" | "Fraksi 2";
     
     // Append row to Google Sheets
-    await appendRow(targetTab, [tanggalScrim, lawan, map, startMatch]);
+    await appendRow(targetTab, [tanggalScrim, lawan, map.join(', '), startMatch]);
     
     return NextResponse.json({ ok: true }, { status: 200 });
     

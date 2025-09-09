@@ -9,7 +9,7 @@ import { PlusIcon, CalendarIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker, TimePicker, FraksiSelect, MapMultiSelect } from "@/components/form-fields";
@@ -115,7 +115,7 @@ export default function Home() {
                 <label className="text-base font-medium block mb-2">Fraksi Tim</label>
                 <FraksiSelect
                   value={form.watch("fraksi") || ""}
-                  onChange={(value) => form.setValue("fraksi", value)}
+                  onChange={(value) => form.setValue("fraksi", value as "Fraksi 1" | "Fraksi 2")}
                   disabled={isSubmitting}
                 />
               </div>

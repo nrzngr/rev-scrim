@@ -118,6 +118,7 @@ export function MapMultiSelect({ value, onChange, disabled = false }: MapMultiSe
           <div
             role="combobox"
             aria-expanded={open}
+            aria-controls="map-options"
             className="w-full h-auto min-h-11 border border-gray-600 bg-gray-700 text-white rounded-md px-3 py-2 cursor-pointer hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
             onClick={() => setOpen(!open)}
             onKeyDown={(e) => {
@@ -156,7 +157,7 @@ export function MapMultiSelect({ value, onChange, disabled = false }: MapMultiSe
           </div>
         </PopoverTrigger>
         <PopoverContent className="w-full p-2 bg-gray-700 border border-gray-600 shadow-lg rounded-lg">
-          <div className="space-y-1">
+          <div id="map-options" className="space-y-1">
             {MAP_OPTIONS.map((map) => (
               <div
                 key={map}
