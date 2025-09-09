@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Scrim Scheduler",
-  description: "Schedule scrims and manage team practices",
+  title: "REV Scrim Scheduler",
+  description: "Manajemen scrim REV Mobile",
 };
 
 export default function RootLayout({

@@ -17,7 +17,7 @@ interface DatePickerProps {
   disabled?: boolean;
 }
 
-export function DatePicker({ value, onChange, placeholder = "Pilih tanggal", disabled = false }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = "Pilih tanggal main", disabled = false }: DatePickerProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -119,7 +119,7 @@ export function MapMultiSelect({ value, onChange, disabled = false }: MapMultiSe
             role="combobox"
             aria-expanded={open}
             aria-controls="map-options"
-            className="w-full h-auto min-h-11 border border-gray-600 bg-gray-700 text-white rounded-md px-3 py-2 cursor-pointer hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+            className="w-full h-auto min-h-12 border border-gray-600 bg-gray-700/50 text-white rounded-lg px-4 py-3 cursor-pointer hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20 focus:border-purple-400 transition-all duration-200"
             onClick={() => setOpen(!open)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -132,12 +132,12 @@ export function MapMultiSelect({ value, onChange, disabled = false }: MapMultiSe
             <div className="flex items-center justify-between">
               <div className="flex flex-wrap gap-1 flex-1">
                 {value.length === 0 && (
-                  <span className="text-gray-400">Pilih map...</span>
+                  <span className="text-gray-400">Pilih Map</span>
                 )}
                 {value.map((map) => (
                   <div
                     key={map}
-                    className="bg-blue-600 text-white px-2 py-1 rounded-md text-sm flex items-center gap-1"
+                    className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 font-medium shadow-lg"
                   >
                     {map}
                     <span
@@ -145,7 +145,7 @@ export function MapMultiSelect({ value, onChange, disabled = false }: MapMultiSe
                         e.stopPropagation();
                         handleRemove(map);
                       }}
-                      className="hover:bg-blue-700 rounded-full p-0.5 cursor-pointer"
+                      className="hover:bg-white/20 rounded-full p-1 cursor-pointer transition-colors"
                     >
                       <Cross2Icon className="h-3 w-3" />
                     </span>
@@ -156,17 +156,17 @@ export function MapMultiSelect({ value, onChange, disabled = false }: MapMultiSe
             </div>
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-full p-2 bg-gray-700 border border-gray-600 shadow-lg rounded-lg">
+        <PopoverContent className="w-full p-3 bg-gray-800/95 backdrop-blur-sm border border-gray-600 shadow-xl rounded-xl">
           <div id="map-options" className="space-y-1">
             {MAP_OPTIONS.map((map) => (
               <div
                 key={map}
                 onClick={() => handleSelect(map)}
                 className={cn(
-                  "w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer text-white",
+                  "w-full text-left px-4 py-3 rounded-lg text-sm transition-all cursor-pointer text-white font-medium",
                   value.includes(map)
-                    ? "bg-blue-600 text-white font-medium"
-                    : "hover:bg-gray-600"
+                    ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-md"
+                    : "hover:bg-gray-700 hover:scale-[1.02]"
                 )}
               >
                 {map}
@@ -183,7 +183,7 @@ export function FraksiSelect({ value, onChange, disabled = false }: FraksiSelect
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger className="w-full h-11">
-        <SelectValue placeholder="Pilih fraksi tim..." />
+        <SelectValue placeholder="Pilih Fraksi" />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="Fraksi 1">
