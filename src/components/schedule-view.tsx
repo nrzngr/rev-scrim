@@ -10,7 +10,7 @@ import { CalendarIcon, ClockIcon, MapIcon, UsersIcon, RefreshCwIcon, MoreVertica
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { format, parseISO, isAfter, isSameDay } from "date-fns";
-import { useDebounce } from "@/hooks/useDebounce";
+// import { useDebounce } from "@/hooks/useDebounce"; // Currently unused
 import { DatePicker, TimePicker, MapMultiSelect } from "@/components/form-fields";
 
 interface ScheduleItem {
@@ -98,8 +98,8 @@ export function ScheduleView() {
     }
   };
 
-  // Debounced refresh to prevent multiple rapid calls
-  const debouncedFetchData = useDebounce(fetchScheduleData, 500);
+  // Debounced refresh to prevent multiple rapid calls (currently unused but kept for potential future use)
+  // const debouncedFetchData = useDebounce(fetchScheduleData, 500);
   
   const handleRefresh = useCallback(async () => {
     if (refreshing) return; // Prevent multiple simultaneous refreshes
@@ -270,11 +270,11 @@ export function ScheduleView() {
     
     setDeletingId(schedule.id);
     
+    // Store original data for potential revert
+    const originalData = { ...scheduleData };
+    
     try {
       const fraksiName = fraksi === "fraksi1" ? "Fraksi 1" : "Fraksi 2";
-      
-      // Store original data for potential revert
-      const originalData = { ...scheduleData };
       
       // Optimistic update - remove item from UI immediately
       setScheduleData(prev => {
@@ -313,7 +313,7 @@ export function ScheduleView() {
     } finally {
       setDeletingId(null);
     }
-  }, [scheduleData, refreshAfterOperation]);
+  }, [scheduleData]); // refreshAfterOperation removed as it's not called in this function
 
   const handleCancel = useCallback(() => {
     setEditingId(null);

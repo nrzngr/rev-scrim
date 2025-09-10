@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    const responseHeaders = forceRefresh ? {
+    const responseHeaders: Record<string, string> = forceRefresh ? {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0'
