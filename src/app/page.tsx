@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker, TimePicker, FraksiSelect, MapMultiSelect } from "@/components/form-fields";
 import { ScheduleView } from "@/components/schedule-view";
+import { CalendarView } from "@/components/calendar-view";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { scrimFormSchema, type ScrimFormData } from "@/lib/validation";
 import Image from "next/image";
@@ -264,7 +265,7 @@ export default function Home() {
           <Tabs defaultValue="input" className="w-full">
             {/* Enhanced Navigation */}
             <div className="mb-8">
-              <TabsList className="grid w-full grid-cols-2 h-16 bg-gray-800/50 border border-gray-700 p-1">
+              <TabsList className="grid w-full grid-cols-3 h-16 bg-gray-800/50 border border-gray-700 p-1">
                 <TabsTrigger 
                   value="input" 
                   className="flex items-center gap-3 text-base font-medium h-14 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-400 transition-all duration-200"
@@ -273,7 +274,8 @@ export default function Home() {
                     <div className="p-1.5 bg-blue-500/20 rounded-lg">
                       <PlusIcon className="h-4 w-4" />
                     </div>
-                    <span>Create Scrim</span>
+                    <span className="hidden sm:inline">Create Scrim</span>
+                    <span className="sm:hidden">Create</span>
                   </div>
                 </TabsTrigger>
                 <TabsTrigger 
@@ -284,7 +286,20 @@ export default function Home() {
                     <div className="p-1.5 bg-green-500/20 rounded-lg">
                       <CalendarIcon className="h-4 w-4" />
                     </div>
-                    <span>View Schedule</span>
+                    <span className="hidden sm:inline">View Schedule</span>
+                    <span className="sm:hidden">Schedule</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="calendar" 
+                  className="flex items-center gap-3 text-base font-medium h-14 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-400 transition-all duration-200"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-amber-500/20 rounded-lg">
+                      <CalendarIcon className="h-4 w-4" />
+                    </div>
+                    <span className="hidden sm:inline">Calendar View</span>
+                    <span className="sm:hidden">Calendar</span>
                   </div>
                 </TabsTrigger>
               </TabsList>
@@ -299,6 +314,12 @@ export default function Home() {
             <TabsContent value="schedule" className="space-y-6 mt-0">
               <ErrorBoundary>
                 <ScheduleView />
+              </ErrorBoundary>
+            </TabsContent>
+            
+            <TabsContent value="calendar" className="space-y-6 mt-0">
+              <ErrorBoundary>
+                <CalendarView />
               </ErrorBoundary>
             </TabsContent>
           </Tabs>

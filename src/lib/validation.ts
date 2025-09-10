@@ -31,3 +31,28 @@ export interface AttendanceRecord {
   reason: string;
   timestamp: string;
 }
+
+export const matchResultSchema = z.object({
+  scheduleId: z.number().min(1, "Schedule ID is required"),
+  fraksi: z.enum(["Fraksi 1", "Fraksi 2"], {
+    message: "Please select a fraksi",
+  }),
+  revScore: z.number().min(0).max(99, "Score must be between 0-99"),
+  opponentScore: z.number().min(0).max(99, "Score must be between 0-99"),
+  notes: z.string().max(500, "Notes must be less than 500 characters").optional(),
+  recordedBy: z.string().min(2, "Recorder name must be at least 2 characters").max(50, "Recorder name must be less than 50 characters"),
+});
+
+export type MatchResultData = z.infer<typeof matchResultSchema>;
+
+export interface MatchResultRecord {
+  id: number;
+  scheduleId: number;
+  fraksi: string;
+  revScore: number;
+  opponentScore: number;
+  status: "win" | "loss" | "draw";
+  notes: string;
+  recordedBy: string;
+  timestamp: string;
+}

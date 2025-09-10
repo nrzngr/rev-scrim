@@ -99,9 +99,15 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Convert unique schedule ID back to original ID for Google Sheets storage
+    // Fraksi 1 IDs: 1001, 1002... -> 1, 2... 
+    // Fraksi 2 IDs: 2001, 2002... -> 1, 2...
+    const fraksiOffset = fraksi === "Fraksi 1" ? 1000 : 2000;
+    const originalScheduleId = scheduleId - fraksiOffset;
+    
     // Append attendance row to Google Sheets
     await appendAttendanceRow([
-      scheduleId.toString(),
+      originalScheduleId.toString(),
       fraksi,
       playerName.trim(),
       'unavailable',

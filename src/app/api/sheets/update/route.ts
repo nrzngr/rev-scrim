@@ -32,8 +32,14 @@ export async function PUT(request: NextRequest) {
       fraksi
     });
     
+    // Convert unique ID back to row index
+    // Fraksi 1 IDs: 1001, 1002, etc. -> row index 1, 2, etc.
+    // Fraksi 2 IDs: 2001, 2002, etc. -> row index 1, 2, etc.
+    const fraksiOffset = fraksi === "Fraksi 1" ? 1000 : 2000;
+    const rowIndex = id - fraksiOffset;
+    
     // Update row in Google Sheets
-    await updateRow(fraksi, id, [
+    await updateRow(fraksi, rowIndex, [
       validatedData.tanggalScrim, 
       validatedData.lawan, 
       validatedData.map.join(', '), 
