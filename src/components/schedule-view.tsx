@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarIcon, ClockIcon, MapIcon, UsersIcon, RefreshCwIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { CalendarIcon, ClockIcon, MapIcon, UsersIcon, RefreshCwIcon, MoreVerticalIcon, EditIcon, TrashIcon, CheckIcon, XIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { format, parseISO, isAfter, isSameDay } from "date-fns";
 import { useDebounce } from "@/hooks/useDebounce";
+import { DatePicker, TimePicker, MapMultiSelect } from "@/components/form-fields";
 
 interface ScheduleItem {
   id: number;
@@ -30,6 +33,21 @@ export function ScheduleView() {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingFraksi, setEditingFraksi] = useState<"fraksi1" | "fraksi2" | null>(null);
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editData, setEditData] = useState<{
+    tanggalScrim: string;
+    lawan: string;
+    map: string[];
+    startMatch: string;
+  }>({
+    tanggalScrim: "",
+    lawan: "",
+    map: [],
+    startMatch: ""
+  });
 
   const fetchScheduleData = async (abortSignal?: AbortSignal) => {
     try {
@@ -86,8 +104,221 @@ export function ScheduleView() {
   const handleRefresh = useCallback(async () => {
     if (refreshing) return; // Prevent multiple simultaneous refreshes
     setRefreshing(true);
-    await debouncedFetchData();
-  }, [refreshing, debouncedFetchData]);
+    try {
+      // Multiple aggressive cache busting strategies
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(7);
+      
+      const [fraksi1Response, fraksi2Response] = await Promise.all([
+        fetch(`/api/sheets/fetch?fraksi=Fraksi 1&refresh=true&t=${timestamp}&r=${randomSuffix}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+          cache: 'no-store'
+        }),
+        fetch(`/api/sheets/fetch?fraksi=Fraksi 2&refresh=true&t=${timestamp}&r=${randomSuffix}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+          cache: 'no-store'
+        })
+      ]);
+
+      const fraksi1Data = await fraksi1Response.json();
+      const fraksi2Data = await fraksi2Response.json();
+
+      if (fraksi1Data.ok && fraksi2Data.ok) {
+        setScheduleData({
+          fraksi1: fraksi1Data.data || [],
+          fraksi2: fraksi2Data.data || []
+        });
+        toast.success('Jadwal berhasil diperbarui dari server!');
+      } else {
+        throw new Error('Failed to fetch schedule data');
+      }
+    } catch (error) {
+      console.error('Error refreshing schedule:', error);
+      toast.error('Gagal memperbarui jadwal. Silakan coba lagi.');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing]);
+
+  const refreshAfterOperation = useCallback(async () => {
+    // Refresh data after CRUD operations - force fresh data with delay
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second for Google Sheets to propagate
+    
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(7);
+    
+    try {
+      const [fraksi1Response, fraksi2Response] = await Promise.all([
+        fetch(`/api/sheets/fetch?fraksi=Fraksi 1&refresh=true&t=${timestamp}&r=${randomSuffix}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
+        }),
+        fetch(`/api/sheets/fetch?fraksi=Fraksi 2&refresh=true&t=${timestamp}&r=${randomSuffix}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
+        })
+      ]);
+
+      if (fraksi1Response.ok && fraksi2Response.ok) {
+        const fraksi1Data = await fraksi1Response.json();
+        const fraksi2Data = await fraksi2Response.json();
+
+        if (fraksi1Data.ok && fraksi2Data.ok) {
+          setScheduleData({
+            fraksi1: fraksi1Data.data || [],
+            fraksi2: fraksi2Data.data || []
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing after operation:', error);
+    }
+  }, []);
+
+  const handleEdit = useCallback((schedule: ScheduleItem, fraksi: "fraksi1" | "fraksi2") => {
+    setEditingId(schedule.id);
+    setEditingFraksi(fraksi);
+    setEditData({
+      tanggalScrim: schedule.tanggalScrim,
+      lawan: schedule.lawan,
+      map: schedule.map.split(', ').filter(Boolean),
+      startMatch: schedule.startMatch
+    });
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!editingId || !editingFraksi) return;
+    
+    setSavingId(editingId);
+    
+    try {
+      const fraksiName = editingFraksi === "fraksi1" ? "Fraksi 1" : "Fraksi 2";
+      
+      // Optimistic update - update UI immediately
+      const updatedSchedule: ScheduleItem = {
+        id: editingId,
+        tanggalScrim: editData.tanggalScrim,
+        lawan: editData.lawan,
+        map: editData.map.join(', '),
+        startMatch: editData.startMatch
+      };
+      
+      setScheduleData(prev => {
+        const newData = { ...prev };
+        const targetArray = editingFraksi === "fraksi1" ? "fraksi1" : "fraksi2";
+        newData[targetArray] = newData[targetArray].map(item => 
+          item.id === editingId ? updatedSchedule : item
+        );
+        return newData;
+      });
+      
+      // Exit edit mode immediately for better UX
+      setEditingId(null);
+      setEditingFraksi(null);
+      
+      const response = await fetch('/api/sheets/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: editingId,
+          fraksi: fraksiName,
+          ...editData
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Scrim berhasil diperbarui!');
+        // Don't refresh - trust optimistic update for better UX
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Gagal memperbarui scrim');
+        // Revert optimistic update on error
+        await refreshAfterOperation();
+      }
+    } catch (error) {
+      console.error('Error updating schedule:', error);
+      toast.error('Terjadi kesalahan saat memperbarui scrim');
+      // Revert optimistic update on error
+      await refreshAfterOperation();
+    } finally {
+      setSavingId(null);
+    }
+  }, [editingId, editingFraksi, editData, refreshAfterOperation]);
+
+  const handleDelete = useCallback(async (schedule: ScheduleItem, fraksi: "fraksi1" | "fraksi2") => {
+    if (!confirm('Apakah Anda yakin ingin menghapus scrim ini?')) return;
+    
+    setDeletingId(schedule.id);
+    
+    try {
+      const fraksiName = fraksi === "fraksi1" ? "Fraksi 1" : "Fraksi 2";
+      
+      // Store original data for potential revert
+      const originalData = { ...scheduleData };
+      
+      // Optimistic update - remove item from UI immediately
+      setScheduleData(prev => {
+        const newData = { ...prev };
+        const targetArray = fraksi === "fraksi1" ? "fraksi1" : "fraksi2";
+        newData[targetArray] = newData[targetArray].filter(item => item.id !== schedule.id);
+        return newData;
+      });
+      
+      const response = await fetch('/api/sheets/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: schedule.id,
+          fraksi: fraksiName
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Scrim berhasil dihapus!');
+        // Don't refresh immediately - trust optimistic update
+        // Only refresh when user manually refreshes or returns to tab
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Gagal menghapus scrim');
+        // Revert optimistic update on error
+        setScheduleData(originalData);
+      }
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+      toast.error('Terjadi kesalahan saat menghapus scrim');
+      // Revert optimistic update on error
+      setScheduleData(originalData);
+    } finally {
+      setDeletingId(null);
+    }
+  }, [scheduleData, refreshAfterOperation]);
+
+  const handleCancel = useCallback(() => {
+    setEditingId(null);
+    setEditingFraksi(null);
+  }, []);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -98,6 +329,39 @@ export function ScheduleView() {
       abortController.abort();
     };
   }, []);
+
+  // Use refs to avoid dependency issues
+  const loadingRef = useRef(loading);
+  const refreshAfterOperationRef = useRef(refreshAfterOperation);
+  
+  // Update refs when values change
+  loadingRef.current = loading;
+  refreshAfterOperationRef.current = refreshAfterOperation;
+
+  // Separate useEffect for auto-refresh listeners with stable dependencies
+  useEffect(() => {
+    // Auto-refresh when page becomes visible (user returns from another tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && !loadingRef.current) {
+        refreshAfterOperationRef.current();
+      }
+    };
+
+    // Auto-refresh when window regains focus
+    const handleFocus = () => {
+      if (!loadingRef.current) {
+        refreshAfterOperationRef.current();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []); // Empty dependency array - stable
 
   // Memoized filter and sort schedules by date/time
   const filterAndSortSchedules = useCallback((schedules: ScheduleItem[]) => {
@@ -175,7 +439,7 @@ export function ScheduleView() {
     return timeString;
   };
 
-  const renderScheduleCards = (filteredSchedules: ScheduleItem[]) => {
+  const renderScheduleCards = (filteredSchedules: ScheduleItem[], fraksi: "fraksi1" | "fraksi2") => {
     
     if (filteredSchedules.length === 0) {
       return (
@@ -199,34 +463,182 @@ export function ScheduleView() {
 
     return (
       <div className="space-y-4">
-        {filteredSchedules.map((schedule) => (
-          <Card key={schedule.id} className="group hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 border-gray-700 bg-gradient-to-r from-gray-800 to-gray-850 hover:from-gray-750 hover:to-gray-800">
-            <CardContent className="p-6">
-              {/* Header with Date & Time */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/10 rounded-lg">
-                    <CalendarIcon className="h-5 w-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-white">
-                      {formatDate(schedule.tanggalScrim)}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <ClockIcon className="h-4 w-4 text-teal-400" />
-                      <span className="text-teal-400 font-medium">{formatTime(schedule.startMatch)}</span>
+        {filteredSchedules.map((schedule) => {
+          const isEditing = editingId === schedule.id && editingFraksi === fraksi;
+          
+          return (
+            <Card key={schedule.id} className="group hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 border-gray-700 bg-gradient-to-r from-gray-800 to-gray-850 hover:from-gray-750 hover:to-gray-800">
+              <CardContent className="p-6">
+                {isEditing ? (
+                  // Edit Mode
+                  <div className="space-y-4">
+                    {/* Edit Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <EditIcon className="h-5 w-5 text-blue-400" />
+                        Edit Scrim
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleCancel}
+                          className="h-8 px-3 text-gray-400 border-gray-600 hover:bg-gray-700"
+                        >
+                          <XIcon className="h-4 w-4 mr-1" />
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSave}
+                          disabled={savingId === schedule.id}
+                          className="h-8 px-3 bg-green-500 hover:bg-green-600 disabled:opacity-50"
+                        >
+                          {savingId === schedule.id ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-1" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckIcon className="h-4 w-4 mr-1" />
+                              Save
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Edit Form */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Tanggal</label>
+                        <DatePicker
+                          value={editData.tanggalScrim ? new Date(editData.tanggalScrim) : undefined}
+                          onChange={(date) => setEditData(prev => ({
+                            ...prev,
+                            tanggalScrim: date ? format(date, "yyyy-MM-dd") : ""
+                          }))}
+                          placeholder="Pilih tanggal"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Waktu</label>
+                        <TimePicker
+                          value={editData.startMatch}
+                          onChange={(value) => setEditData(prev => ({
+                            ...prev,
+                            startMatch: value
+                          }))}
+                          placeholder="HH:mm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-300">Tim Lawan</label>
+                      <Input
+                        value={editData.lawan}
+                        onChange={(e) => setEditData(prev => ({
+                          ...prev,
+                          lawan: e.target.value
+                        }))}
+                        placeholder="Nama tim lawan"
+                        className="bg-gray-700/50 border-gray-600"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-300">Map</label>
+                      <MapMultiSelect
+                        value={editData.map}
+                        onChange={(value) => setEditData(prev => ({
+                          ...prev,
+                          map: value
+                        }))}
+                      />
                     </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-                    Upcoming
-                  </span>
-                </div>
-              </div>
+                ) : (
+                  // View Mode
+                  <>
+                    {/* Header with Date & Time */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/10 rounded-lg">
+                          <CalendarIcon className="h-5 w-5 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-white">
+                            {formatDate(schedule.tanggalScrim)}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <ClockIcon className="h-4 w-4 text-teal-400" />
+                            <span className="text-teal-400 font-medium">{formatTime(schedule.startMatch)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+                            Upcoming
+                          </span>
+                        </div>
+                        
+                        {/* Action Menu */}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-white hover:bg-gray-700"
+                            >
+                              <MoreVerticalIcon className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-40 p-1 bg-gray-800 border border-gray-600">
+                            <div className="space-y-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(schedule, fraksi)}
+                                className="w-full justify-start text-left h-8 text-gray-300 hover:text-white hover:bg-gray-700"
+                              >
+                                <EditIcon className="h-4 w-4 mr-2" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(schedule, fraksi)}
+                                disabled={deletingId === schedule.id}
+                                className="w-full justify-start text-left h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                              >
+                                {deletingId === schedule.id ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin mr-2" />
+                                    Deleting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <TrashIcon className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  </>
+                )}
 
-              {/* VS Section */}
-              <div className="flex items-center justify-between sm:grid sm:grid-cols-3 sm:gap-4 sm:items-center">
+                {!isEditing && (
+                  <>
+                    {/* VS Section */}
+                    <div className="flex items-center justify-between sm:grid sm:grid-cols-3 sm:gap-4 sm:items-center">
                 {/* Our Team - Mobile: Compact, Desktop: Horizontal */}
                 <div className="flex items-center gap-2 sm:gap-3 sm:justify-start">
                   <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center">
@@ -254,23 +666,25 @@ export function ScheduleView() {
                     <p className="text-white font-medium text-sm sm:text-base sm:font-semibold text-right">{schedule.lawan || 'TBA'}</p>
                     <p className="text-orange-400 text-xs sm:text-sm hidden sm:block text-right">Tim Tamu</p>
                   </div>
-                </div>
-              </div>
+                    </div>
+                    </div>
 
-              {/* Map Info */}
-              <div className="mt-4 pt-4 border-t border-gray-700">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapIcon className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-300 text-sm">Map:</span>
-                    <span className="text-white font-medium">{schedule.map || 'TBA'}</span>
-                  </div>
-                  
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                    {/* Map Info */}
+                    <div className="mt-4 pt-4 border-t border-gray-700">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapIcon className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-300 text-sm">Map:</span>
+                          <span className="text-white font-medium">{schedule.map || 'TBA'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     );
   };
@@ -396,11 +810,11 @@ export function ScheduleView() {
         </TabsList>
         
         <TabsContent value="fraksi1" className="space-y-6 mt-0">
-          {renderScheduleCards(filteredFraksi1Schedules)}
+          {renderScheduleCards(filteredFraksi1Schedules, "fraksi1")}
         </TabsContent>
         
         <TabsContent value="fraksi2" className="space-y-6 mt-0">
-          {renderScheduleCards(filteredFraksi2Schedules)}
+          {renderScheduleCards(filteredFraksi2Schedules, "fraksi2")}
         </TabsContent>
       </Tabs>
     </div>

@@ -56,3 +56,69 @@ export async function getSheetData(targetTab: "Fraksi 1" | "Fraksi 2") {
     throw error;
   }
 }
+
+export async function updateRow(
+  targetTab: "Fraksi 1" | "Fraksi 2",
+  rowIndex: number,
+  row: [string, string, string, string]
+) {
+  try {
+    // Row index is 1-based in Google Sheets API, and we need to account for header row
+    const actualRowIndex = rowIndex + 1; // +1 for header row
+    
+    const response = await sheets.spreadsheets.values.update({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: `${targetTab}!A${actualRowIndex}:D${actualRowIndex}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [row]
+      }
+    });
+    
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error updating Google Sheets row:', error);
+    throw error;
+  }
+}
+
+export async function deleteRow(
+  targetTab: "Fraksi 1" | "Fraksi 2",
+  rowIndex: number
+) {
+  try {
+    // Get the sheet ID first
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+    });
+    
+    const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === targetTab);
+    if (!sheet?.properties?.sheetId) {
+      throw new Error(`Sheet "${targetTab}" not found`);
+    }
+    
+    // Row index is 0-based for batchUpdate, and we need to account for header row
+    const actualRowIndex = rowIndex; // rowIndex already accounts for header row being skipped
+    
+    const response = await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: sheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: actualRowIndex,
+              endIndex: actualRowIndex + 1
+            }
+          }
+        }]
+      }
+    });
+    
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error deleting Google Sheets row:', error);
+    throw error;
+  }
+}

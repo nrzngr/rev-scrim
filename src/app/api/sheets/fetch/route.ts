@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const fraksi = searchParams.get('fraksi') as "Fraksi 1" | "Fraksi 2" | null;
+    const forceRefresh = searchParams.get('refresh') === 'true';
     
     if (!fraksi || (fraksi !== "Fraksi 1" && fraksi !== "Fraksi 2")) {
       return NextResponse.json(
@@ -17,12 +18,12 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Check cache first
+    // Skip cache if force refresh is requested
     const cacheKey = `sheets-${fraksi}`;
     const cached = cache.get(cacheKey);
     const now = Date.now();
     
-    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+    if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
       return NextResponse.json({ 
         ok: true, 
         data: cached.data,
@@ -56,17 +57,24 @@ export async function GET(request: NextRequest) {
       });
     }
     
+    const responseHeaders = forceRefresh ? {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    } : {
+      'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      'CDN-Cache-Control': 'public, s-maxage=30',
+      'Vercel-CDN-Cache-Control': 'public, s-maxage=30'
+    };
+
     return NextResponse.json({ 
       ok: true, 
       data: result.data,
-      fraksi: fraksi 
+      fraksi: fraksi,
+      forceRefresh: forceRefresh
     }, { 
       status: 200,
-      headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-        'CDN-Cache-Control': 'public, s-maxage=30',
-        'Vercel-CDN-Cache-Control': 'public, s-maxage=30'
-      }
+      headers: responseHeaders
     });
     
   } catch (error) {
