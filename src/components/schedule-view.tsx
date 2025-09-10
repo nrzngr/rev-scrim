@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { format, parseISO, isAfter, isSameDay } from "date-fns";
 // import { useDebounce } from "@/hooks/useDebounce"; // Currently unused
 import { DatePicker, TimePicker, MapMultiSelect } from "@/components/form-fields";
+import { AttendanceManager } from "@/components/attendance-manager";
 
 interface ScheduleItem {
   id: number;
@@ -585,6 +586,13 @@ export function ScheduleView() {
                             Upcoming
                           </span>
                         </div>
+                        
+                        {/* Attendance Manager */}
+                        <AttendanceManager 
+                          scheduleId={schedule.id}
+                          fraksi={fraksi}
+                          onAttendanceChange={refreshAfterOperationRef.current}
+                        />
                         
                         {/* Action Menu */}
                         <Popover>

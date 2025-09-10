@@ -122,3 +122,88 @@ export async function deleteRow(
     throw error;
   }
 }
+
+export async function appendAttendanceRow(
+  row: [string, string, string, string, string, string] // scheduleId, fraksi, playerName, status, reason, timestamp
+) {
+  try {
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: 'Attendance!A:F',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [row]
+      }
+    });
+    
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error appending to Attendance sheet:', error);
+    throw error;
+  }
+}
+
+export async function getAttendanceData() {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      range: 'Attendance!A:F'
+    });
+    
+    const rows = response.data.values || [];
+    
+    // Skip the header row (first row)
+    const dataRows = rows.slice(1);
+    
+    // Transform rows into structured objects
+    const attendanceRecords = dataRows.map((row, index) => ({
+      id: index + 1,
+      scheduleId: parseInt(row[0]) || 0,
+      fraksi: row[1] || '',
+      playerName: row[2] || '',
+      status: row[3] || '',
+      reason: row[4] || '',
+      timestamp: row[5] || ''
+    }));
+    
+    return { success: true, data: attendanceRecords };
+  } catch (error) {
+    console.error('Error fetching from Attendance sheet:', error);
+    throw error;
+  }
+}
+
+export async function deleteAttendanceRow(rowIndex: number) {
+  try {
+    // Get the sheet ID first
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+    });
+    
+    const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === 'Attendance');
+    if (!sheet?.properties?.sheetId) {
+      throw new Error('Attendance sheet not found');
+    }
+    
+    const response = await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: sheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1
+            }
+          }
+        }]
+      }
+    });
+    
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Error deleting attendance row:', error);
+    throw error;
+  }
+}
