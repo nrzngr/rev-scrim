@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from "lucide-react";
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
 import { id as localeId } from 'date-fns/locale';
 
 interface ScheduleItem {
@@ -122,11 +122,13 @@ export function CalendarView() {
     }
   }, []);
 
-  // Get calendar days
+  // Get calendar days with proper week alignment
   const calendarDays = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
+    const calendarStart = startOfWeek(start, { weekStartsOn: 0 }); // Start on Sunday
+    const calendarEnd = endOfWeek(end, { weekStartsOn: 0 }); // End on Saturday
+    return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentMonth]);
 
   // Get matches for a specific date
