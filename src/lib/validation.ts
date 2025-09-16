@@ -49,6 +49,7 @@ export interface MatchResultRecord {
   id: number;
   scheduleId: number;
   fraksi: string;
+  opponent: string;
   revScore: number;
   opponentScore: number;
   status: "win" | "loss" | "draw";

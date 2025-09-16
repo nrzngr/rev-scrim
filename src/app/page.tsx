@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { PlusIcon, CalendarIcon } from "lucide-react";
+import { PlusIcon, CalendarIcon, TrophyIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker, TimePicker, FraksiSelect, MapMultiSelect } from "@/components/form-fields";
 import { ScheduleView } from "@/components/schedule-view";
 import { CalendarView } from "@/components/calendar-view";
+import { MatchHistoryView } from "@/components/match-history-view";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { scrimFormSchema, type ScrimFormData } from "@/lib/validation";
 import Image from "next/image";
@@ -264,43 +265,43 @@ export default function Home() {
         <div className="max-w-5xl mx-auto">
           <Tabs defaultValue="input" className="w-full">
             {/* Enhanced Navigation */}
-            <div className="mb-8">
-              <TabsList className="grid w-full grid-cols-3 h-16 bg-gray-800/50 border border-gray-700 p-1">
-                <TabsTrigger 
-                  value="input" 
-                  className="flex items-center gap-3 text-base font-medium h-14 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-400 transition-all duration-200"
+            <div className="mb-6 sm:mb-8">
+              <TabsList className="grid w-full grid-cols-4 h-14 sm:h-16 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 p-1 rounded-xl">
+                <TabsTrigger
+                  value="input"
+                  className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base font-medium h-12 sm:h-14 px-2 sm:px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-400 transition-all duration-200 rounded-lg"
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-blue-500/20 rounded-lg">
-                      <PlusIcon className="h-4 w-4" />
-                    </div>
-                    <span className="hidden sm:inline">Create Scrim</span>
-                    <span className="sm:hidden">Create</span>
+                  <div className="p-1 sm:p-1.5 bg-blue-500/20 rounded-lg">
+                    <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                   </div>
+                  <span className="text-xs sm:text-sm font-medium leading-tight">Create</span>
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="schedule" 
-                  className="flex items-center gap-3 text-base font-medium h-14 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-teal-600 data-[state=active]:text-white text-gray-400 transition-all duration-200"
+                <TabsTrigger
+                  value="schedule"
+                  className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base font-medium h-12 sm:h-14 px-2 sm:px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-teal-600 data-[state=active]:text-white text-gray-400 transition-all duration-200 rounded-lg"
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-green-500/20 rounded-lg">
-                      <CalendarIcon className="h-4 w-4" />
-                    </div>
-                    <span className="hidden sm:inline">View Schedule</span>
-                    <span className="sm:hidden">Schedule</span>
+                  <div className="p-1 sm:p-1.5 bg-green-500/20 rounded-lg">
+                    <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                   </div>
+                  <span className="text-xs sm:text-sm font-medium leading-tight">Schedule</span>
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="calendar" 
-                  className="flex items-center gap-3 text-base font-medium h-14 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-400 transition-all duration-200"
+                <TabsTrigger
+                  value="calendar"
+                  className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base font-medium h-12 sm:h-14 px-2 sm:px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-400 transition-all duration-200 rounded-lg"
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-amber-500/20 rounded-lg">
-                      <CalendarIcon className="h-4 w-4" />
-                    </div>
-                    <span className="hidden sm:inline">Calendar View</span>
-                    <span className="sm:hidden">Calendar</span>
+                  <div className="p-1 sm:p-1.5 bg-amber-500/20 rounded-lg">
+                    <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                   </div>
+                  <span className="text-xs sm:text-sm font-medium leading-tight">Calendar</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="history"
+                  className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base font-medium h-12 sm:h-14 px-2 sm:px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-pink-600 data-[state=active]:text-white text-gray-400 transition-all duration-200 rounded-lg"
+                >
+                  <div className="p-1 sm:p-1.5 bg-rose-500/20 rounded-lg">
+                    <TrophyIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-medium leading-tight">History</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -320,6 +321,12 @@ export default function Home() {
             <TabsContent value="calendar" className="space-y-6 mt-0">
               <ErrorBoundary>
                 <CalendarView />
+              </ErrorBoundary>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-6 mt-0">
+              <ErrorBoundary>
+                <MatchHistoryView />
               </ErrorBoundary>
             </TabsContent>
           </Tabs>

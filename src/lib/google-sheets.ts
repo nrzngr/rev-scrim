@@ -221,18 +221,18 @@ export async function deleteAttendanceRow(rowIndex: number) {
 }
 
 export async function appendMatchResultRow(
-  row: [string, string, string, string, string, string, string, string] // scheduleId, fraksi, revScore, opponentScore, status, notes, recordedBy, timestamp
+  row: [string, string, string, string, string, string, string, string, string] // scheduleId, fraksi, opponent, revScore, opponentScore, status, notes, recordedBy, timestamp
 ) {
   try {
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: 'MatchResults!A:H',
+      range: 'MatchResults!A:I',
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [row]
       }
     });
-    
+
     return { success: true, data: response.data };
   } catch (error) {
     console.error('Error appending to MatchResults sheet:', error);
@@ -244,27 +244,28 @@ export async function getMatchResultsData() {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: 'MatchResults!A:H'
+      range: 'MatchResults!A:I'
     });
-    
+
     const rows = response.data.values || [];
-    
+
     // Skip the header row (first row)
     const dataRows = rows.slice(1);
-    
+
     // Transform rows into structured objects
     const matchResults = dataRows.map((row, index) => ({
       id: index + 1,
       scheduleId: parseInt(row[0]) || 0,
       fraksi: row[1] || '',
-      revScore: parseInt(row[2]) || 0,
-      opponentScore: parseInt(row[3]) || 0,
-      status: row[4] || '',
-      notes: row[5] || '',
-      recordedBy: row[6] || '',
-      timestamp: row[7] || ''
+      opponent: row[2] || '',
+      revScore: parseInt(row[3]) || 0,
+      opponentScore: parseInt(row[4]) || 0,
+      status: row[5] || '',
+      notes: row[6] || '',
+      recordedBy: row[7] || '',
+      timestamp: row[8] || ''
     }));
-    
+
     return { success: true, data: matchResults };
   } catch (error) {
     console.error('Error fetching from MatchResults sheet:', error);
@@ -274,21 +275,21 @@ export async function getMatchResultsData() {
 
 export async function updateMatchResultRow(
   rowIndex: number,
-  row: [string, string, string, string, string, string, string, string]
+  row: [string, string, string, string, string, string, string, string, string]
 ) {
   try {
     // Row index is 1-based in Google Sheets API, and we need to account for header row
     const actualRowIndex = rowIndex + 1; // +1 for header row
-    
+
     const response = await sheets.spreadsheets.values.update({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      range: `MatchResults!A${actualRowIndex}:H${actualRowIndex}`,
+      range: `MatchResults!A${actualRowIndex}:I${actualRowIndex}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [row]
       }
     });
-    
+
     return { success: true, data: response.data };
   } catch (error) {
     console.error('Error updating MatchResults row:', error);
