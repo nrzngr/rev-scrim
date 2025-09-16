@@ -248,7 +248,7 @@ export async function DELETE(request: NextRequest) {
     const rowIndexToDelete = resultIndex + 2;
 
     // Get the sheet ID first
-    const { google } = require('googleapis');
+    const { google } = await import('googleapis');
     const auth = new google.auth.JWT({
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       key: process.env.GOOGLE_SERVICE_ACCOUNT_KEY?.replace(/\\n/g, '\n'),

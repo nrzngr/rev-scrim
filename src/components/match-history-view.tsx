@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { TrophyIcon, SearchIcon, FilterIcon, CalendarIcon, UsersIcon, ChevronDownIcon, ChevronUpIcon, EditIcon, TrashIcon, MoreVerticalIcon, XIcon, CheckIcon } from "lucide-react";
+import { TrophyIcon, SearchIcon, FilterIcon, UsersIcon, ChevronDownIcon, ChevronUpIcon, EditIcon, TrashIcon, XIcon, CheckIcon } from "lucide-react";
 import { MatchResultRecord } from "@/lib/validation";
 import { format, isValid, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -312,7 +312,7 @@ export function MatchHistoryView() {
                 </label>
                 <select
                   value={factionFilter}
-                  onChange={(e) => setFactionFilter(e.target.value as any)}
+                  onChange={(e) => setFactionFilter(e.target.value as "all" | "Fraksi 1" | "Fraksi 2")}
                   className="w-full h-12 px-4 bg-gray-700/80 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-all"
                 >
                   <option value="all">All Factions</option>
@@ -328,7 +328,7 @@ export function MatchHistoryView() {
                 </label>
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  onChange={(e) => setStatusFilter(e.target.value as "all" | "win" | "loss" | "draw")}
                   className="w-full h-12 px-4 bg-gray-700/80 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-all"
                 >
                   <option value="all">All Results</option>
