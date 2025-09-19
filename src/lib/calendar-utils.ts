@@ -28,9 +28,19 @@ export function generateGoogleCalendarUrl(schedule: ScheduleItem, fraksi: string
     const endDateTime = new Date(startDateTime);
     endDateTime.setHours(endDateTime.getHours() + 2);
     
-    // Format dates for Google Calendar (RFC3339 format without colons and with Z suffix)
+    // Format dates for Google Calendar (RFC3339 format without colons, preserving local timezone)
     const formatDateForGoogle = (date: Date) => {
-      return format(date, "yyyyMMdd'T'HHmmss'Z'");
+      // Get the timezone offset in minutes and convert to milliseconds
+      const timezoneOffset = date.getTimezoneOffset();
+      const offsetSign = timezoneOffset <= 0 ? '+' : '-';
+      const offsetHours = Math.abs(Math.floor(timezoneOffset / 60)).toString().padStart(2, '0');
+      const offsetMinutes = Math.abs(timezoneOffset % 60).toString().padStart(2, '0');
+      
+      // Format the date without timezone indicator first
+      const formattedDate = format(date, "yyyyMMdd'T'HHmmss");
+      
+      // Append the timezone offset instead of 'Z' to preserve local time
+      return `${formattedDate}${offsetSign}${offsetHours}${offsetMinutes}`;
     };
     
     const startDate = formatDateForGoogle(startDateTime);
