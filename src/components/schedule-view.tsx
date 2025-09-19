@@ -14,6 +14,7 @@ import { format, parseISO } from "date-fns";
 import { DatePicker, TimePicker, MapMultiSelect } from "@/components/form-fields";
 import { AttendanceManager } from "@/components/attendance-manager";
 import { MatchResultsManager } from "@/components/match-results-manager";
+import { AddToCalendarButton } from "@/components/add-to-calendar-button";
 
 interface ScheduleItem {
   id: number;
@@ -85,7 +86,7 @@ export function ScheduleView() {
 
       const [fraksi1Response, fraksi2Response] = await Promise.all([
         fetchWithTimeout('/api/sheets/fetch?fraksi=Fraksi 1'),
-        fetchWithTimeout('/api/sheets/fetch?fraksi=Fraksi 2')
+        fetchWithTimeout('/api/sheets/fetch?fraksi=Fraksi 2') // Fixed: Changed from "2" to "Fraksi 2"
       ]);
 
       // Check if request was aborted
@@ -186,7 +187,7 @@ export function ScheduleView() {
           },
           cache: 'no-store'
         }),
-        fetch(`/api/sheets/fetch?fraksi=Fraksi 2&refresh=true&t=${timestamp}&r=${randomSuffix}`, {
+        fetch(`/api/sheets/fetch?fraksi=Fraksi 2&refresh=true&t=${timestamp}&r=${randomSuffix}`, { // Fixed: Changed from "2" to "Fraksi 2"
           method: 'GET',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -241,7 +242,7 @@ export function ScheduleView() {
             'Expires': '0',
           }
         }),
-        fetch(`/api/sheets/fetch?fraksi=Fraksi 2&refresh=true&t=${timestamp}&r=${randomSuffix}`, {
+        fetch(`/api/sheets/fetch?fraksi=Fraksi 2&refresh=true&t=${timestamp}&r=${randomSuffix}`, { // Fixed: Changed from "2" to "Fraksi 2"
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -600,13 +601,13 @@ export function ScheduleView() {
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-2 sm:space-y-3">
         {filteredSchedules.map((schedule) => {
           const isEditing = editingId === schedule.id && editingFraksi === fraksi;
-          
+
           return (
-            <Card key={schedule.id} className="group hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 border-gray-600/50 bg-gray-800/80 hover:bg-gray-800/90 backdrop-blur-sm shadow-lg shadow-black/20 hover:border-gray-500/60">
-              <CardContent className="p-4">
+            <Card key={schedule.id} className="group hover:shadow-2xl hover:shadow-blue-500/15 transition-all duration-300 border-gray-600/30 bg-gray-800/90 hover:bg-gray-800/95 backdrop-blur-md shadow-lg shadow-black/20 hover:border-gray-500/40 hover:scale-[1.01]">
+              <CardContent className="p-2.5 sm:p-3.5 md:p-4">
                 {isEditing ? (
                   // Edit Mode
                   <div className="space-y-4">
@@ -699,107 +700,102 @@ export function ScheduleView() {
                     </div>
                   </div>
                 ) : (
-                  // View Mode - Redesigned for better spacing
+                  // View Mode - Mobile-first responsive design
                   <>
-                    {/* Compact Header - Date, Time & Actions */}
-                    <div className="flex items-center justify-between mb-4">
-                      {/* Date & Time - Compact design */}
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500/15 rounded-xl">
-                          <CalendarIcon className="h-5 w-5 text-blue-400" />
+                    {/* Improved Header - Better proportions and mobile layout */}
+                    <div className="flex flex-col gap-3 mb-3 sm:mb-4">
+                      {/* Date & Time - Optimized for mobile */}
+                      <div className="flex items-center gap-2.5 sm:gap-3">
+                        <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-xl border border-blue-500/20">
+                          <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
                         </div>
-                        <div>
-                          <p className="text-base font-bold text-white leading-tight">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm sm:text-base font-bold text-white leading-tight tracking-tight">
                             {formatDate(schedule.tanggalScrim)}
                           </p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <ClockIcon className="h-3.5 w-3.5 text-teal-400" />
-                            <span className="text-teal-400 font-medium text-sm">{formatTime(schedule.startMatch)}</span>
+                          <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
+                            <ClockIcon className="h-3 w-3 sm:h-4 sm:w-4 text-teal-400" />
+                            <span className="text-xs sm:text-sm text-teal-400 font-medium">{formatTime(schedule.startMatch)}</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Action Buttons - Compact */}
-                      <div className="flex items-center gap-1">
-                        <MatchResultsManager 
-                          scheduleId={schedule.id}
+                      {/* Action Buttons - Better mobile layout */}
+                      <div className="flex flex-col gap-2 w-full">
+                        <AddToCalendarButton
+                          schedule={schedule}
                           fraksi={fraksi}
-                          opponent={schedule.lawan}
-                          isCompleted={isMatchCompleted(schedule)}
-                          onResultChange={refreshAfterOperationRef.current}
+                          className="w-full h-8 sm:h-9"
                         />
-                        
-                        <AttendanceManager 
-                          scheduleId={schedule.id}
-                          fraksi={fraksi}
-                          onAttendanceChange={refreshAfterOperationRef.current}
-                        />
-                        
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg"
-                            >
-                              <MoreVerticalIcon className="h-4 w-4" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-40 p-1 bg-gray-800 border border-gray-600 rounded-lg">
-                            <div className="space-y-0.5">
+
+                        <div className="flex gap-2 w-full">
+                          <div className="flex-1">
+                            <AttendanceManager
+                              scheduleId={schedule.id}
+                              fraksi={fraksi}
+                              onAttendanceChange={refreshAfterOperationRef.current}
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <MatchResultsManager
+                              scheduleId={schedule.id}
+                              fraksi={fraksi}
+                              opponent={schedule.lawan}
+                              isCompleted={isMatchCompleted(schedule)}
+                              onResultChange={refreshAfterOperationRef.current}
+                            />
+
+                            <div className="flex items-center gap-1 bg-gray-700/30 rounded-lg p-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEdit(schedule, fraksi)}
-                                className="w-full justify-start text-left h-8 text-gray-300 hover:text-white hover:bg-gray-700 rounded text-sm"
+                                className="p-1.5 h-7 w-7 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-md flex items-center justify-center transition-all duration-200 hover:scale-105"
+                                title="Edit Scrim"
                               >
-                                <EditIcon className="h-3.5 w-3.5 mr-2" />
-                                Edit
+                                <EditIcon className="h-3 w-3" />
                               </Button>
+
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDelete(schedule, fraksi)}
                                 disabled={deletingId === schedule.id}
-                                className="w-full justify-start text-left h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50 rounded text-sm"
+                                className="p-1.5 h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/15 disabled:opacity-50 rounded-md flex items-center justify-center transition-all duration-200 hover:scale-105"
+                                title="Delete Scrim"
                               >
                                 {deletingId === schedule.id ? (
-                                  <>
-                                    <div className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin mr-2" />
-                                    Deleting...
-                                  </>
+                                  <div className="w-3 h-3 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
                                 ) : (
-                                  <>
-                                    <TrashIcon className="h-3.5 w-3.5 mr-2" />
-                                    Delete
-                                  </>
+                                  <TrashIcon className="h-3 w-3" />
                                 )}
                               </Button>
                             </div>
-                          </PopoverContent>
-                        </Popover>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Compact Status Badges */}
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                      {isMatchCompleted(schedule) ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                          Completed
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold bg-green-500/20 text-green-300 border border-green-500/30">
-                          Upcoming
-                        </span>
+                    {/* Status Badges - Responsive mobile layout */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      {isMatchCompleted(schedule) && (
+                        <div className="flex-1">
+                          <span className="inline-flex items-center justify-center w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            Completed
+                          </span>
+                        </div>
                       )}
-                      
+
                       {/* Attendance indicator */}
                       {(() => {
                         const attendanceCount = getAttendanceCount(schedule.id, fraksi);
                         return attendanceCount > 0 && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                            {attendanceCount} unavailable
-                          </span>
+                          <div className="flex-1">
+                            <span className="inline-flex items-center justify-center w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-red-500/20 text-red-300 border border-red-500/30">
+                              {attendanceCount} unavailable
+                            </span>
+                          </div>
                         );
                       })()}
                     </div>
@@ -808,49 +804,49 @@ export function ScheduleView() {
 
                 {!isEditing && (
                   <>
-                    {/* Compact VS Section */}
-                    <div className="bg-gray-700/30 rounded-xl p-3 mb-3 border border-gray-600/20 shadow-inner">
+                    {/* Improved VS Section - Mobile optimized */}
+                    <div className="bg-gradient-to-br from-gray-700/40 to-gray-800/40 rounded-xl p-2.5 sm:p-3 mb-2.5 sm:mb-3 border border-gray-600/30 shadow-lg shadow-black/10">
                       <div className="flex items-center justify-between">
                         {/* Our Team */}
-                        <div className="flex items-center gap-2 flex-1">
-                          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">REV</span>
+                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                          <div className="w-7 h-7 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <span className="text-white text-xs sm:text-sm font-bold tracking-tight">REV</span>
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-white font-semibold text-sm leading-tight">REV Team</p>
-                            <p className="text-blue-400 text-xs">Tim Tuan Rumah</p>
+                            <p className="text-white font-semibold text-xs sm:text-sm leading-tight tracking-tight">REV Team</p>
+                            <p className="text-blue-400 text-xs text-xs sm:text-xs">Tim Tuan Rumah</p>
                           </div>
                         </div>
 
-                        {/* VS Indicator - Compact */}
-                        <div className="mx-3">
-                          <div className="inline-flex items-center justify-center w-12 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
-                            <span className="text-white font-bold text-xs">VS</span>
+                        {/* VS Indicator - Mobile optimized */}
+                        <div className="mx-1.5 sm:mx-3">
+                          <div className="inline-flex items-center justify-center w-8 h-7 sm:w-12 sm:h-9 bg-gradient-to-r from-purple-500 via-purple-600 to-pink-500 rounded-lg shadow-lg shadow-purple-500/20">
+                            <span className="text-white font-bold text-xs sm:text-sm tracking-tight">VS</span>
                           </div>
                         </div>
 
                         {/* Opponent Team */}
-                        <div className="flex items-center gap-2 flex-1 justify-end">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 justify-end">
                           <div className="min-w-0 flex-1 text-right">
-                            <p className="text-white font-semibold text-sm leading-tight truncate">{schedule.lawan || 'Akan Diumumkan'}</p>
+                            <p className="text-white font-semibold text-xs sm:text-sm leading-tight truncate tracking-tight">{schedule.lawan || 'Akan Diumumkan'}</p>
                             <p className="text-orange-400 text-xs">Tim Tamu</p>
                           </div>
-                          <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-                            <UsersIcon className="h-4 w-4 text-white" />
+                          <div className="w-7 h-7 sm:w-9 sm:h-9 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+                            <UsersIcon className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-white" />
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Compact Map Info */}
-                    <div className="bg-gray-700/25 rounded-lg p-2.5 border border-gray-600/15">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-1.5 bg-emerald-500/15 rounded-lg">
-                          <MapIcon className="h-4 w-4 text-emerald-400" />
+                    {/* Improved Map Info - Mobile optimized */}
+                    <div className="bg-gradient-to-br from-gray-700/30 to-gray-800/30 rounded-xl p-2.5 sm:p-3 border border-gray-600/20 shadow-lg shadow-black/5">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="p-1.5 sm:p-2 bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 rounded-lg border border-emerald-500/20">
+                          <MapIcon className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-emerald-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-gray-400 text-xs mb-0.5">Map Bermain</p>
-                          <p className="text-white font-semibold text-sm truncate">{schedule.map || 'Akan diumumkan'}</p>
+                          <p className="text-gray-400 text-xs mb-0.5 sm:mb-1">Map Bermain</p>
+                          <p className="text-white font-semibold text-xs sm:text-sm truncate tracking-tight">{schedule.map || 'Akan diumumkan'}</p>
                         </div>
                       </div>
                     </div>
@@ -936,58 +932,58 @@ export function ScheduleView() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Enhanced Mobile Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-white">Jadwal Scrim</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Mendatang</p>
+    <div className="space-y-3 sm:space-y-5">
+      {/* Enhanced Mobile Header - Responsive */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold text-white">Jadwal Scrim</h1>
+          <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Mendatang</p>
         </div>
         <Button
           variant="outline"
           onClick={handleRefresh}
           disabled={refreshing}
-          className="border-blue-500/40 bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 hover:text-blue-300 transition-all duration-200 h-12 px-4 min-w-[48px] flex items-center justify-center"
+          className="border-blue-500/40 bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 hover:text-blue-300 transition-all duration-200 h-9 sm:h-10 px-2.5 sm:px-3.5 min-w-[36px] sm:min-w-[44px] flex items-center justify-center"
         >
-          <RefreshCwIcon className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-          <span className="ml-2 hidden sm:inline font-medium">Refresh</span>
+          <RefreshCwIcon className={`h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 ${refreshing ? 'animate-spin' : ''}`} />
+          <span className="ml-1 sm:ml-2 hidden sm:inline font-medium text-xs sm:text-sm">Refresh</span>
         </Button>
       </div>
 
-      {/* Mobile-optimized Tabs */}
+      {/* Mobile-optimized Tabs - Responsive */}
       <Tabs defaultValue="fraksi1" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6 h-12 bg-gray-800/50 border border-gray-700/50 rounded-xl p-1">
-          <TabsTrigger 
+        <TabsList className="grid w-full grid-cols-2 mb-3 sm:mb-5 h-9 sm:h-11 bg-gray-800/50 border border-gray-700/50 rounded-lg p-1">
+          <TabsTrigger
             value="fraksi1"
-            className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-lg text-gray-300 font-medium text-sm h-10 transition-all duration-200 rounded-lg"
+            className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-lg text-gray-300 font-medium text-xs sm:text-sm h-7 sm:h-9 transition-all duration-200 rounded-md"
           >
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-500 rounded-full"></div>
               <span>Fraksi 1</span>
-              <span className="bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full text-xs min-w-[20px] text-center">
+              <span className="bg-blue-500/20 text-blue-400 px-1 sm:px-1.5 py-0.5 rounded-full text-xs min-w-[16px] sm:min-w-[18px] text-center">
                 {filteredFraksi1Schedules.length}
               </span>
             </div>
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="fraksi2"
-            className="data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-lg text-gray-300 font-medium text-sm h-10 transition-all duration-200 rounded-lg"
+            className="data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-lg text-gray-300 font-medium text-xs sm:text-sm h-7 sm:h-9 transition-all duration-200 rounded-md"
           >
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-green-500 rounded-full"></div>
               <span>Fraksi 2</span>
-              <span className="bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full text-xs min-w-[20px] text-center">
+              <span className="bg-green-500/20 text-green-400 px-1 sm:px-1.5 py-0.5 rounded-full text-xs min-w-[16px] sm:min-w-[18px] text-center">
                 {filteredFraksi2Schedules.length}
               </span>
             </div>
           </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="fraksi1" className="space-y-6 mt-0">
+
+        <TabsContent value="fraksi1" className="space-y-3 sm:space-y-4 mt-0">
           {renderScheduleCards(filteredFraksi1Schedules, "fraksi1")}
         </TabsContent>
-        
-        <TabsContent value="fraksi2" className="space-y-6 mt-0">
+
+        <TabsContent value="fraksi2" className="space-y-3 sm:space-y-4 mt-0">
           {renderScheduleCards(filteredFraksi2Schedules, "fraksi2")}
         </TabsContent>
       </Tabs>

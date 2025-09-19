@@ -216,20 +216,17 @@ export function MatchResultsManager({
         <Button
           variant="ghost"
           size="sm"
-          className={`h-8 px-2 relative ${
-            existingResult 
-              ? existingResult.status === 'win' 
+          className={`h-8 w-8 relative transition-all duration-200 ${
+            existingResult
+              ? existingResult.status === 'win'
                 ? 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
                 : existingResult.status === 'loss'
                 ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
                 : 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
           }`}
         >
-          <TrophyIcon className="h-4 w-4 mr-1" />
-          <span className="hidden sm:inline">
-            {existingResult ? 'Result' : 'Add Result'}
-          </span>
+          <TrophyIcon className="h-3.5 w-3.5" />
           {existingResult && (
             <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
               ✓

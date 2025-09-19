@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from "lucide-react";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
 import { id as localeId } from 'date-fns/locale';
+import { AddToCalendarButton } from "@/components/add-to-calendar-button";
 
 interface ScheduleItem {
   id: number;
@@ -192,75 +193,89 @@ export function CalendarView() {
   }
 
   return (
-    <div className="space-y-4 px-2 sm:px-0">
+    <div className="space-y-6 px-4 py-2 sm:px-0 sm:py-0">
       {/* Mobile-First Header */}
-      <div className="space-y-4">
-        <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" />
+      <div className="space-y-6">
+        <h2 className="text-2xl sm:text-2xl font-bold text-white flex items-center gap-3">
+          <CalendarIcon className="h-6 w-6 sm:h-6 sm:w-6 text-blue-400" />
           Calendar View
         </h2>
         
         {/* Mobile-optimized navigation */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
           <div className="flex items-center justify-center bg-gray-800/50 rounded-xl p-1 order-2 sm:order-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigateMonth('prev')}
-              className="h-12 sm:h-10 px-4 sm:px-3 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg"
+              className="h-14 sm:h-10 px-5 sm:px-3 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg"
             >
-              <ChevronLeftIcon className="h-5 w-5 sm:h-4 sm:w-4" />
+              <ChevronLeftIcon className="h-6 w-6 sm:h-4 sm:w-4" />
             </Button>
-            <span className="px-6 sm:px-4 py-3 sm:py-2 text-white font-semibold text-lg sm:text-base min-w-[160px] sm:min-w-[140px] text-center">
+            <span className="px-8 sm:px-4 py-4 sm:py-2 text-white font-semibold text-xl sm:text-base min-w-[180px] sm:min-w-[140px] text-center">
               {format(currentMonth, 'MMMM yyyy', { locale: localeId })}
             </span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigateMonth('next')}
-              className="h-12 sm:h-10 px-4 sm:px-3 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg"
+              className="h-14 sm:h-10 px-5 sm:px-3 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg"
             >
-              <ChevronRightIcon className="h-5 w-5 sm:h-4 sm:w-4" />
+              <ChevronRightIcon className="h-6 w-6 sm:h-4 sm:w-4" />
             </Button>
           </div>
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goToToday}
-            className="border-gray-600 text-gray-300 hover:bg-gray-700 h-12 sm:h-10 text-base sm:text-sm order-1 sm:order-2 rounded-xl sm:rounded-md"
-          >
-            Today
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 order-1 sm:order-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700 h-14 sm:h-10 text-lg sm:text-sm rounded-xl sm:rounded-md"
+            >
+              Today
+            </Button>
+            
+            <AddToCalendarButton
+              schedule={{
+                id: 0,
+                tanggalScrim: new Date().toISOString().split('T')[0],
+                lawan: 'All Matches',
+                map: 'Various',
+                startMatch: '19:00'
+              }}
+              fraksi="fraksi1"
+              className="h-14 sm:h-10 text-lg sm:text-sm rounded-xl sm:rounded-md"
+            />
+          </div>
         </div>
       </div>
 
       {/* Mobile-optimized Legend */}
-      <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm bg-gray-800/30 rounded-xl p-3 sm:p-4">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 sm:w-3 sm:h-3 bg-blue-500 rounded"></div>
+      <div className="flex flex-wrap items-center gap-4 sm:gap-4 text-base bg-gray-800/30 rounded-xl p-4 sm:p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 sm:w-3 sm:h-3 bg-blue-500 rounded"></div>
           <span className="text-gray-300 font-medium">Fraksi 1</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 sm:w-3 sm:h-3 bg-green-500 rounded"></div>
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 sm:w-3 sm:h-3 bg-green-500 rounded"></div>
           <span className="text-gray-300 font-medium">Fraksi 2</span>
         </div>
       </div>
 
       {/* Mobile-First Calendar Grid */}
       <Card className="bg-gray-900/60 border-gray-700/80 rounded-xl sm:rounded-lg overflow-hidden backdrop-blur-sm">
-        <CardContent className="p-3 sm:p-4">
+        <CardContent className="p-4 sm:p-4">
           {/* Week headers */}
-          <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-3 sm:mb-4">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-4 sm:mb-4">
             {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map(day => (
-              <div key={day} className="p-2 sm:p-2 text-center text-xs sm:text-sm font-semibold text-gray-300">
+              <div key={day} className="p-3 sm:p-2 text-center text-sm sm:text-sm font-semibold text-gray-300">
                 {day}
               </div>
             ))}
           </div>
 
           {/* Simplified mobile calendar grid */}
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-2">
             {calendarDays.map((day) => {
               const matches = getMatchesForDate(day);
               const isToday = isSameDay(day, new Date());
@@ -270,19 +285,19 @@ export function CalendarView() {
               return (
                 <div
                   key={day.toString()}
-                  className={`min-h-[100px] p-1 rounded-lg border overflow-hidden ${
-                    isCurrentMonth 
+                  className={`min-h-[120px] p-3 rounded-xl border overflow-hidden ${
+                    isCurrentMonth
                       ? isToday
                         ? 'bg-blue-500/20 border-blue-400/60'
-                        : hasMatches 
+                        : hasMatches
                           ? 'bg-gray-700/40 border-gray-600'
                           : 'bg-gray-800/20 border-gray-700/40'
                       : 'bg-gray-900/20 border-gray-800/40'
                   }`}
                 >
                   {/* Simplified date number */}
-                  <div className={`text-sm font-bold mb-1.5 text-center ${
-                    isCurrentMonth 
+                  <div className={`text-base font-bold mb-2 text-center ${
+                    isCurrentMonth
                       ? isToday ? 'text-blue-300' : 'text-white'
                       : 'text-gray-500'
                   }`}>
@@ -291,28 +306,28 @@ export function CalendarView() {
                   
                   {/* Clean minimal indicators */}
                   {hasMatches && (
-                    <div className="flex flex-col items-center space-y-1">
+                    <div className="flex flex-col items-center space-y-2">
                       {/* Simple colored bar indicators */}
-                      <div className="flex gap-1 w-full justify-center">
+                      <div className="flex gap-1.5 w-full justify-center">
                         {matches.slice(0, 3).map(match => {
                           const result = getMatchResult(match.id);
                           return (
                             <div
                               key={`${match.id}-${match.fraksi}`}
-                              className={`h-2 flex-1 rounded-full ${
-                                match.fraksi === 'Fraksi 1' 
-                                  ? result 
-                                    ? result.status === 'win' 
-                                      ? 'bg-blue-400' 
-                                      : result.status === 'loss' 
-                                        ? 'bg-blue-600' 
+                              className={`h-3 flex-1 rounded-full ${
+                                match.fraksi === 'Fraksi 1'
+                                  ? result
+                                    ? result.status === 'win'
+                                      ? 'bg-blue-400'
+                                      : result.status === 'loss'
+                                        ? 'bg-blue-600'
                                         : 'bg-blue-500'
                                     : 'bg-blue-300'
-                                  : result 
-                                    ? result.status === 'win' 
-                                      ? 'bg-green-400' 
-                                      : result.status === 'loss' 
-                                        ? 'bg-green-600' 
+                                  : result
+                                    ? result.status === 'win'
+                                      ? 'bg-green-400'
+                                      : result.status === 'loss'
+                                        ? 'bg-green-600'
                                         : 'bg-green-500'
                                     : 'bg-green-300'
                               }`}
@@ -344,38 +359,126 @@ export function CalendarView() {
       </Card>
 
       {/* Mobile-First Summary Stats - Simple and Clean */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:gap-4">
         <Card className="bg-gray-800/40 border-gray-700/60 rounded-xl">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <CalendarIcon className="h-5 w-5 sm:h-4 sm:w-4 text-blue-400" />
-              <span className="text-sm font-medium text-gray-300">Total</span>
+          <CardContent className="p-5 sm:p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <CalendarIcon className="h-6 w-6 sm:h-4 sm:w-4 text-blue-400" />
+              <span className="text-base font-medium text-gray-300">Total</span>
             </div>
-            <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
+            <div className="text-3xl sm:text-3xl font-bold text-white mb-2">
               {calendarDays.reduce((count, day) => count + getMatchesForDate(day).length, 0)}
             </div>
-            <div className="text-xs text-gray-400">Matches</div>
+            <div className="text-sm text-gray-400">Matches</div>
           </CardContent>
         </Card>
 
         <Card className="bg-gray-800/40 border-gray-700/60 rounded-xl">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-5 h-5 sm:w-4 sm:h-4 bg-green-500 rounded-full flex items-center justify-center">
+          <CardContent className="p-5 sm:p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-6 h-6 sm:w-4 sm:h-4 bg-green-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-xs font-bold">✓</span>
               </div>
-              <span className="text-sm font-medium text-gray-300">Done</span>
+              <span className="text-base font-medium text-gray-300">Done</span>
             </div>
-            <div className="text-2xl sm:text-3xl font-bold text-white mb-1">
+            <div className="text-3xl sm:text-3xl font-bold text-white mb-2">
               {calendarDays.reduce((count, day) => {
                 const dayMatches = getMatchesForDate(day);
                 return count + dayMatches.filter(match => isMatchCompleted(match)).length;
               }, 0)}
             </div>
-            <div className="text-xs text-gray-400">Played</div>
+            <div className="text-sm text-gray-400">Played</div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Upcoming Matches Section */}
+      <Card className="bg-gray-800/40 border-gray-700/60 rounded-xl">
+        <CardContent className="p-5 sm:p-5">
+          <div className="flex items-center gap-3 mb-6">
+            <CalendarIcon className="h-6 w-6 text-blue-400" />
+            <h3 className="text-xl font-semibold text-white">Upcoming Matches</h3>
+          </div>
+          
+          <div className="space-y-4">
+            {(() => {
+              // Get upcoming matches (not completed)
+              const upcomingMatches = [];
+              const today = new Date();
+              
+              // Look at the next 14 days
+              for (let i = 0; i < 14; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+                const dayMatches = getMatchesForDate(date);
+                
+                for (const match of dayMatches) {
+                  if (!isMatchCompleted(match)) {
+                    upcomingMatches.push({
+                      ...match,
+                      dateObj: date,
+                      dateString: format(date, 'yyyy-MM-dd')
+                    });
+                  }
+                }
+              }
+              
+              // Sort by date and time
+              upcomingMatches.sort((a, b) => {
+                if (a.dateString !== b.dateString) {
+                  return a.dateString.localeCompare(b.dateString);
+                }
+                return a.startMatch.localeCompare(b.startMatch);
+              });
+              
+              // Show up to 3 upcoming matches
+              const matchesToShow = upcomingMatches.slice(0, 3);
+              
+              if (matchesToShow.length === 0) {
+                return (
+                  <div className="text-center py-6 text-gray-400 text-base">
+                    No upcoming matches in the next 14 days
+                  </div>
+                );
+              }
+              
+              return matchesToShow.map(match => (
+                <div key={`${match.id}-${match.fraksi}`} className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/30">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className={`text-sm font-medium px-3 py-1.5 rounded-lg ${
+                          match.fraksi === 'Fraksi 1' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'
+                        }`}>
+                          {match.fraksi}
+                        </span>
+                        <span className="text-sm text-gray-400">
+                          {format(match.dateObj, 'dd MMM')}
+                        </span>
+                        <span className="text-sm text-gray-400">
+                          {match.startMatch}
+                        </span>
+                      </div>
+                      <div className="text-lg font-medium text-white mb-1">
+                        vs {match.lawan}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {match.map}
+                      </div>
+                    </div>
+                    <div className="flex justify-center sm:justify-start">
+                      <AddToCalendarButton
+                        schedule={match}
+                        fraksi={match.fraksi as "fraksi1" | "fraksi2"}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

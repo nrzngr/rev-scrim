@@ -121,19 +121,20 @@ export function AttendanceManager({ scheduleId, fraksi, onAttendanceChange }: At
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 relative"
-        >
-          <UsersIcon className="h-4 w-4 mr-1" />
-          <span className="hidden sm:inline">Attendance</span>
-          {unavailableCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-              {unavailableCount}
-            </span>
-          )}
-        </Button>
+        <div className="w-full sm:w-auto">
+          <Button
+            variant="ghost"
+            className="w-full h-8 px-3 py-2 rounded-lg text-sm font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 hover:text-amber-200 transition-all duration-200"
+          >
+            <UsersIcon className="h-3.5 w-3.5 mr-1.5" />
+            <span>Absensi</span>
+            {unavailableCount > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-600 text-white text-xs font-bold">
+                {unavailableCount}
+              </span>
+            )}
+          </Button>
+        </div>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0 bg-gray-800 border border-gray-600" align="end">
         <div className="p-4 space-y-4">
