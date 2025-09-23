@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteRow } from '@/lib/google-sheets';
+import { invalidateCache } from '@/app/api/sheets/fetch/route';
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -29,6 +30,9 @@ export async function DELETE(request: NextRequest) {
     
     // Delete row from Google Sheets
     await deleteRow(fraksi, rowIndex);
+    
+    // Invalidate cache for the affected fraksi
+    invalidateCache(fraksi);
     
     return NextResponse.json({ ok: true }, { status: 200 });
     

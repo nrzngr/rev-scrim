@@ -5,6 +5,21 @@ import { getSheetData } from '@/lib/google-sheets';
 const cache = new Map();
 const CACHE_DURATION = 30 * 1000; // 30 seconds
 
+// Function to invalidate cache for a specific fraksi
+export function invalidateCache(fraksi: "Fraksi 1" | "Fraksi 2") {
+  const cacheKey = `sheets-${fraksi}`;
+  if (cache.has(cacheKey)) {
+    console.log(`Invalidating cache for ${fraksi}`);
+    cache.delete(cacheKey);
+  }
+}
+
+// Function to invalidate all cache
+export function invalidateAllCache() {
+  console.log('Invalidating all cache');
+  cache.clear();
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

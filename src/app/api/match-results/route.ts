@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { matchResultSchema } from '@/lib/validation';
-import { appendMatchResultRow, getMatchResultsData, updateMatchResultRow, getSheetData } from '@/lib/google-sheets';
+import { appendMatchResultRow, getMatchResultsData, updateMatchResultRow, deleteMatchResultRow, getSheetData } from '@/lib/google-sheets';
 
 // GET - Fetch match results
 export async function GET(request: NextRequest) {
@@ -220,10 +220,12 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete match result
 export async function DELETE(request: NextRequest) {
   try {
+    console.log('Processing DELETE request for match result');
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id || isNaN(parseInt(id))) {
+      console.error('Invalid ID provided:', id);
       return NextResponse.json(
         { ok: false, error: 'Valid ID is required' },
         { status: 400 }
@@ -233,55 +235,25 @@ export async function DELETE(request: NextRequest) {
     // Get current match results to find the row index
     const currentResults = await getMatchResultsData();
     if (!currentResults.success) {
+      console.error('Failed to fetch current match results');
       throw new Error('Failed to fetch current match results');
     }
 
     const resultIndex = currentResults.data.findIndex(result => result.id === parseInt(id));
     if (resultIndex === -1) {
+      console.error('Match result not found for ID:', id);
       return NextResponse.json(
         { ok: false, error: 'Match result not found' },
         { status: 404 }
       );
     }
 
-    // Delete the row (add 1 to account for header row, add 1 more because findIndex is 0-based but sheets are 1-based)
-    const rowIndexToDelete = resultIndex + 2;
+    console.log(`Found match result at index ${resultIndex}, deleting row...`);
+    
+    // Use the centralized delete function
+    await deleteMatchResultRow(resultIndex);
 
-    // Get the sheet ID first
-    const { google } = await import('googleapis');
-    const auth = new google.auth.JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: process.env.GOOGLE_SERVICE_ACCOUNT_KEY?.replace(/\\n/g, '\n'),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets']
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheet = await sheets.spreadsheets.get({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-    });
-
-    const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === 'MatchResults');
-    if (!sheet?.properties?.sheetId) {
-      throw new Error('MatchResults sheet not found');
-    }
-
-    // Delete the row
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: process.env.GOOGLE_SHEETS_ID,
-      requestBody: {
-        requests: [{
-          deleteDimension: {
-            range: {
-              sheetId: sheet.properties.sheetId,
-              dimension: 'ROWS',
-              startIndex: rowIndexToDelete - 1, // Convert to 0-based index
-              endIndex: rowIndexToDelete
-            }
-          }
-        }]
-      }
-    });
-
+    console.log('Successfully deleted match result');
     return NextResponse.json({ ok: true }, { status: 200 });
 
   } catch (error) {
