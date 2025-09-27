@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { CalendarIcon, BarChart3Icon, UsersIcon } from "lucide-react";
@@ -45,23 +45,46 @@ export default function Home() {
   // State for the "Tim Lawan" input
   const [lawan, setLawan] = useState<string>("");
 
+  // Refs to always get current state values
+  const stateRef = useRef({
+    tanggalScrim,
+    lawan,
+    map,
+    startMatch,
+    fraksi
+  });
+
+  // Update refs when state changes
+  useEffect(() => {
+    stateRef.current = {
+      tanggalScrim,
+      lawan,
+      map,
+      startMatch,
+      fraksi
+    };
+  }, [tanggalScrim, lawan, map, startMatch, fraksi]);
+
   // Manual submission handler
   const onSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSubmitting) return;
 
+    // Get current state values from refs
+    const currentState = stateRef.current;
+
     // Construct the payload, reading the "lawan" value from the state
     const payload: ScrimFormData = {
-      tanggalScrim,
-      lawan, // Read from state
-      map,
-      startMatch,
-      fraksi: fraksi || "Fraksi 1", // Default to "Fraksi 1" if undefined
+      tanggalScrim: currentState.tanggalScrim,
+      lawan: currentState.lawan, // Read from state
+      map: currentState.map,
+      startMatch: currentState.startMatch,
+      fraksi: currentState.fraksi || "Fraksi 1", // Default to "Fraksi 1" if undefined
     };
 
     const validationResult = scrimFormSchema.safeParse(payload);
     if (!validationResult.success) {
-      console.log("Current form values:", { tanggalScrim, lawan, map, startMatch, fraksi });
+      console.log("Current form values:", currentState);
       console.log("Payload being validated:", payload);
       console.log("Validation errors:", validationResult.error.issues);
       toast.error("Form tidak valid. Silakan periksa kembali input Anda.");
@@ -278,7 +301,10 @@ function ScrimForm({
               <div className="relative">
                 <Input
                   value={lawan}
-                  onChange={(e) => setLawan(e.target.value)}
+                  onChange={(e) => {
+                    console.log("Lawan input changed:", e.target.value);
+                    setLawan(e.target.value);
+                  }}
                   placeholder="Masukkan nama tim lawan"
                   className="h-12 lg:h-14 text-base bg-gray-800/50 border-gray-700 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl pr-12"
                   disabled={isSubmitting}
