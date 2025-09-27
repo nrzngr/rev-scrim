@@ -61,6 +61,9 @@ export default function Home() {
 
     const validationResult = scrimFormSchema.safeParse(payload);
     if (!validationResult.success) {
+      console.log("Current form values:", { tanggalScrim, lawan, map, startMatch, fraksi });
+      console.log("Payload being validated:", payload);
+      console.log("Validation errors:", validationResult.error.issues);
       toast.error("Form tidak valid. Silakan periksa kembali input Anda.");
       return;
     }
