@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSheetData } from '@/lib/google-sheets';
+import { getSchedules } from '@/lib/supabase';
 
 // Simple in-memory cache
 const cache = new Map();
@@ -7,7 +7,7 @@ const CACHE_DURATION = 30 * 1000; // 30 seconds
 
 // Function to invalidate cache for a specific fraksi
 export function invalidateCache(fraksi: "Fraksi 1" | "Fraksi 2") {
-  const cacheKey = `sheets-${fraksi}`;
+  const cacheKey = `schedules-${fraksi}`;
   if (cache.has(cacheKey)) {
     console.log(`Invalidating cache for ${fraksi}`);
     cache.delete(cacheKey);
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Skip cache if force refresh is requested
-    const cacheKey = `sheets-${fraksi}`;
+    const cacheKey = `schedules-${fraksi}`;
     const cached = cache.get(cacheKey);
     const now = Date.now();
     
@@ -54,7 +54,14 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    const result = await getSheetData(fraksi);
+    const result = await getSchedules(fraksi);
+    
+    if (!result.success) {
+      return NextResponse.json(
+        { ok: false, error: result.error || 'Failed to fetch schedules' },
+        { status: 500 }
+      );
+    }
     
     // Cache the result
     cache.set(cacheKey, {

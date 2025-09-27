@@ -97,25 +97,31 @@ export async function deleteRow(
   rowIndex: number
 ) {
   try {
-    console.log(`Deleting row ${rowIndex} from ${targetTab}`);
+    console.log(`Attempting to delete row ${rowIndex} from targetTab: "${targetTab}"`);
     
     // Get the sheet ID first
     const spreadsheet = await sheets.spreadsheets.get({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
     });
+
+    console.log('Available sheets from API:', spreadsheet.data.sheets?.map(s => s.properties?.title));
     
-    const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === targetTab);
-    if (!sheet?.properties?.sheetId) {
-      throw new Error(`Sheet "${targetTab}" not found`);
+    const foundSheet = spreadsheet.data.sheets?.find(s => s.properties?.title?.toLowerCase() === targetTab.toLowerCase());
+    console.log(`Found sheet object:`, foundSheet);
+
+    if (!foundSheet || !foundSheet.properties) {
+      console.error(`Sheet "${targetTab}" not found or has no properties. Available sheets:`, spreadsheet.data.sheets?.map(s => s.properties?.title));
+      throw new Error(`Sheet "${targetTab}" not found. Available sheets: ${spreadsheet.data.sheets?.map(s => s.properties?.title).join(', ')}`);
     }
+
+    const sheet = foundSheet;
     
     // Row index calculation:
     // 1. rowIndex is 0-based from the data (excluding header)
-    // 2. Add 1 to account for header row
-    // 3. batchUpdate uses 0-based indexing, so no further conversion needed
-    const actualRowIndex = rowIndex + 1;
+    // 2. The deleteDimension API uses 0-based indexing, so no conversion is needed.
+    const actualRowIndex = rowIndex;
     
-    console.log(`Converting data row index ${rowIndex} to sheet row index ${actualRowIndex}`);
+    console.log(`Using data row index ${rowIndex} as the 0-based sheet row index for deletion.`);
     
     const response = await sheets.spreadsheets.batchUpdate({
       spreadsheetId: process.env.GOOGLE_SHEETS_ID,
@@ -123,7 +129,7 @@ export async function deleteRow(
         requests: [{
           deleteDimension: {
             range: {
-              sheetId: sheet.properties.sheetId,
+              sheetId: sheet.properties!.sheetId,
               dimension: 'ROWS',
               startIndex: actualRowIndex,
               endIndex: actualRowIndex + 1
@@ -137,6 +143,47 @@ export async function deleteRow(
     return { success: true, data: response.data };
   } catch (error) {
     console.error('Error deleting Google Sheets row:', error);
+    throw error;
+  }
+}
+
+export async function deleteSchedule(
+  targetTab: "Fraksi 1" | "Fraksi 2",
+  scheduleId: number
+) {
+  try {
+    console.log(`Attempting to delete schedule with ID ${scheduleId} from ${targetTab}`);
+
+    // Fetch current data to find the correct row index for the given scheduleId
+    const currentData = await getSheetData(targetTab);
+    if (!currentData.success) {
+      throw new Error(`Failed to fetch data for ${targetTab} to find schedule for deletion.`);
+    }
+
+    const scheduleToDelete = currentData.data.find(s => s.id === scheduleId);
+    if (!scheduleToDelete) {
+      throw new Error(`Schedule with ID ${scheduleId} not found in ${targetTab}. It may have been already deleted.`);
+    }
+
+    // The rowIndex from getSheetData is 0-based for the data array (excluding header).
+    // The deleteRow function expects this 0-based data index.
+    const rowIndex = currentData.data.findIndex(s => s.id === scheduleId);
+    
+    if (rowIndex === -1) {
+      // This case should ideally be caught by the find() check above, but as a safeguard:
+      throw new Error(`Could not determine row index for schedule ID ${scheduleId} in ${targetTab}.`);
+    }
+
+    console.log(`Found schedule ${scheduleId} at data row index ${rowIndex}. Proceeding with deletion.`);
+    
+    // Call the existing deleteRow function with the determined index
+    const result = await deleteRow(targetTab, rowIndex);
+    
+    console.log(`Successfully deleted schedule ${scheduleId} from ${targetTab}`);
+    return { success: true, data: result.data, message: `Schedule ${scheduleId} deleted successfully from ${targetTab}.` };
+  } catch (error) {
+    console.error(`Error deleting schedule ${scheduleId} from ${targetTab}:`, error);
+    // Re-throw the error to be handled by the caller
     throw error;
   }
 }
@@ -514,10 +561,27 @@ export async function executeTransaction<T>(operations: Array<() => Promise<unkn
 // Helper function to delete a schedule and all related records
 export async function deleteScheduleWithRelatedRecords(scheduleId: number, fraksi: "Fraksi 1" | "Fraksi 2") {
   console.log(`Deleting schedule ${scheduleId} from ${fraksi} and all related records`);
+
+  // Fetch current data to find the correct row index
+  const currentData = await getSheetData(fraksi);
+  if (!currentData.success) {
+    throw new Error(`Failed to fetch data for ${fraksi} to find schedule for deletion.`);
+  }
+
+  const scheduleToDelete = currentData.data.find(s => s.id === scheduleId);
+  if (!scheduleToDelete) {
+    throw new Error(`Schedule with ID ${scheduleId} not found in ${fraksi}. It may have been already deleted.`);
+  }
+
+  // The rowIndex from getSheetData is 0-based for the data array (excluding header).
+  // The deleteRow function expects this 0-based data index.
+  const rowIndex = currentData.data.findIndex(s => s.id === scheduleId);
   
-  // Convert unique ID back to row index
-  const fraksiOffset = fraksi === "Fraksi 1" ? 1000 : 2000;
-  const rowIndex = scheduleId - fraksiOffset;
+  if (rowIndex === -1) {
+    throw new Error(`Could not determine row index for schedule ID ${scheduleId} in ${fraksi}.`);
+  }
+
+  console.log(`Found schedule ${scheduleId} at data row index ${rowIndex}. Preparing deletion.`);
   
   // Define transaction operations
   const operations = [
@@ -560,7 +624,7 @@ export async function deleteScheduleWithRelatedRecords(scheduleId: number, fraks
     // Delete the schedule itself
     async () => {
       await deleteRow(fraksi, rowIndex);
-      console.log(`Deleted schedule ${scheduleId} from ${fraksi}`);
+      console.log(`Deleted schedule ${scheduleId} from ${fraksi} at data row index ${rowIndex}`);
     }
   ];
   

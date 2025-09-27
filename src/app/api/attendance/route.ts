@@ -1,29 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { appendAttendanceRow, getAttendanceData, deleteAttendanceRow } from '@/lib/google-sheets';
+import { getAttendance, createAttendance, deleteAttendance } from '@/lib/supabase';
+import { createNotification } from '@/app/api/notifications/route';
+
+// Simple in-memory cache
+const attendanceCache = {
+  data: null as any,
+  timestamp: 0,
+  ttl: 30000 // 30 seconds cache
+};
 
 // GET - Fetch attendance data
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const scheduleId = searchParams.get('scheduleId');
-    const fraksi = searchParams.get('fraksi');
+  const now = Date.now();
+  const { searchParams } = new URL(request.url);
+  const scheduleId = searchParams.get('scheduleId');
+  const fraksi = searchParams.get('fraksi');
 
-    const result = await getAttendanceData();
-    
-    if (!result.success) {
-      throw new Error('Failed to fetch attendance data');
-    }
-
-    let filteredData = result.data;
+  // Check cache first
+  if (attendanceCache.data && (now - attendanceCache.timestamp < attendanceCache.ttl)) {
+    console.log('Serving attendance data from cache');
+    let filteredData = attendanceCache.data;
     
     // Filter by schedule ID if provided
     if (scheduleId) {
-      filteredData = filteredData.filter(record => record.scheduleId === parseInt(scheduleId));
+      filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
     }
     
     // Filter by fraksi if provided
     if (fraksi) {
-      filteredData = filteredData.filter(record => record.fraksi === fraksi);
+      filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+    }
+
+    return NextResponse.json({ 
+      ok: true, 
+      data: filteredData,
+      cached: true 
+    }, { status: 200 });
+  }
+
+  try {
+    console.log('Fetching fresh attendance data from Supabase');
+    const result = await getAttendance(
+      scheduleId ? parseInt(scheduleId) : undefined,
+      fraksi as "Fraksi 1" | "Fraksi 2" | undefined
+    );
+    
+    if (!result.success) {
+      // If fetching fresh data fails, try to serve stale cache if available
+      if (attendanceCache.data) {
+        console.warn('Failed to fetch fresh attendance data, serving stale cache');
+        let filteredData = attendanceCache.data;
+        
+        if (scheduleId) {
+          filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+        }
+        
+        if (fraksi) {
+          filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+        }
+
+        return NextResponse.json({ 
+          ok: true, 
+          data: filteredData,
+          cached: true,
+          stale: true,
+          warning: 'Serving stale data due to backend error'
+        }, { status: 200 });
+      }
+      throw new Error('Failed to fetch attendance data and no cache available');
+    }
+
+    // Update cache
+    attendanceCache.data = result.data;
+    attendanceCache.timestamp = now;
+    console.log('Updated attendance cache');
+
+    let filteredData = result.data;
+    
+    // Filter by schedule ID if provided (in case it wasn't filtered in the query)
+    if (scheduleId && !fraksi) {
+      filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+    }
+    
+    // Filter by fraksi if provided (in case it wasn't filtered in the query)
+    if (fraksi && !scheduleId) {
+      filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
     }
     
     return NextResponse.json({ 
@@ -38,6 +99,28 @@ export async function GET(request: NextRequest) {
     
   } catch (error) {
     console.error('Error in /api/attendance GET:', error);
+    
+    // If cache exists, serve it as a fallback
+    if (attendanceCache.data) {
+      console.warn('Error fetching attendance data, serving from cache as fallback');
+      let filteredData = attendanceCache.data;
+      
+      if (scheduleId) {
+        filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+      }
+      
+      if (fraksi) {
+        filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+      }
+
+      return NextResponse.json({ 
+        ok: true, 
+        data: filteredData,
+        cached: true,
+        stale: true,
+        warning: 'Serving cached data due to error'
+      }, { status: 200 });
+    }
     
     if (error instanceof Error) {
       return NextResponse.json(
@@ -84,38 +167,41 @@ export async function POST(request: NextRequest) {
     
     const timestamp = new Date().toISOString();
     
-    // Check if player already marked as unavailable for this schedule
-    const existingData = await getAttendanceData();
-    const existingRecord = existingData.data.find(record => 
-      record.scheduleId === scheduleId && 
-      record.fraksi === fraksi && 
-      record.playerName.toLowerCase() === playerName.toLowerCase().trim()
-    );
+    // Create attendance record in Supabase
+    const result = await createAttendance({
+      scheduleId,
+      fraksi: fraksi as "Fraksi 1" | "Fraksi 2",
+      playerName: playerName.trim(),
+      status: 'unavailable',
+      reason: reason || '',
+      timestamp
+    });
     
-    if (existingRecord) {
+    if (!result.success) {
       return NextResponse.json(
-        { ok: false, error: 'Player already marked as unavailable for this match' },
-        { status: 400 }
+        { ok: false, error: result.error || 'Failed to mark attendance' },
+        { status: 500 }
       );
     }
     
-    // Convert unique schedule ID back to original ID for Google Sheets storage
-    // Fraksi 1 IDs: 1001, 1002... -> 1, 2... 
-    // Fraksi 2 IDs: 2001, 2002... -> 1, 2...
-    const fraksiOffset = fraksi === "Fraksi 1" ? 1000 : 2000;
-    const originalScheduleId = scheduleId - fraksiOffset;
+    // Create notification for attendance update
+    createNotification(
+      'attendance_update',
+      `Player Unavailable - ${fraksi}`,
+      `${playerName} marked as unavailable${reason ? ': ' + reason : ''}`,
+      {
+        scheduleId,
+        fraksi,
+        playerName: playerName.trim(),
+        reason: reason || '',
+        status: 'unavailable'
+      }
+    );
     
-    // Append attendance row to Google Sheets
-    await appendAttendanceRow([
-      originalScheduleId.toString(),
-      fraksi,
-      playerName.trim(),
-      'unavailable',
-      reason || '',
-      timestamp
-    ]);
-    
-    return NextResponse.json({ ok: true }, { status: 200 });
+    return NextResponse.json({ 
+      ok: true, 
+      data: result.data 
+    }, { status: 200 });
     
   } catch (error) {
     console.error('Error in /api/attendance POST:', error);
@@ -164,22 +250,35 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Find the record to delete
-    const existingData = await getAttendanceData();
-    const recordIndex = existingData.data.findIndex(record => 
+    const existingData = await getAttendance(scheduleId, fraksi as "Fraksi 1" | "Fraksi 2");
+    if (!existingData.success) {
+      return NextResponse.json(
+        { ok: false, error: 'Failed to fetch attendance records' },
+        { status: 500 }
+      );
+    }
+    
+    const recordToDelete = existingData.data.find(record => 
       record.scheduleId === scheduleId && 
       record.fraksi === fraksi && 
       record.playerName.toLowerCase() === playerName.toLowerCase().trim()
     );
     
-    if (recordIndex === -1) {
+    if (!recordToDelete) {
       return NextResponse.json(
         { ok: false, error: 'Attendance record not found' },
         { status: 404 }
       );
     }
     
-    // Delete the row (add 1 for header row)
-    await deleteAttendanceRow(recordIndex + 1);
+    // Delete the record
+    const deleteResult = await deleteAttendance(recordToDelete.id);
+    if (!deleteResult.success) {
+      return NextResponse.json(
+        { ok: false, error: deleteResult.error || 'Failed to delete attendance record' },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json({ ok: true }, { status: 200 });
     

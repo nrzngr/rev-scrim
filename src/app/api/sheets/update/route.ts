@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrimFormSchema } from '@/lib/validation';
-import { updateRow, getSheetData } from '@/lib/google-sheets';
+import { updateSchedule, getSchedules } from '@/lib/supabase';
 import { invalidateCache } from '@/app/api/sheets/fetch/route';
+import { createNotification } from '@/app/api/notifications/route';
 
 export async function PUT(request: NextRequest) {
   try {
@@ -37,7 +38,7 @@ export async function PUT(request: NextRequest) {
     });
     
     // Check for duplicate entries (excluding the current record being updated)
-    const existingData = await getSheetData(fraksi);
+    const existingData = await getSchedules(fraksi as "Fraksi 1" | "Fraksi 2");
     if (existingData.success) {
       const isDuplicate = existingData.data.some((schedule: { id: number; tanggalScrim: string; lawan: string; startMatch: string }) =>
         schedule.id !== id && // Exclude the current record
@@ -55,24 +56,41 @@ export async function PUT(request: NextRequest) {
       }
     }
     
-    // Convert unique ID back to row index
-    // Fraksi 1 IDs: 1001, 1002, etc. -> row index 1, 2, etc.
-    // Fraksi 2 IDs: 2001, 2002, etc. -> row index 1, 2, etc.
-    const fraksiOffset = fraksi === "Fraksi 1" ? 1000 : 2000;
-    const rowIndex = id - fraksiOffset;
+    console.log(`Updating schedule with ID ${id}`);
     
-    console.log(`Updating schedule with ID ${id} at row index ${rowIndex}`);
+    // Update schedule in Supabase
+    const updateResult = await updateSchedule(id, {
+      tanggalScrim: validatedData.tanggalScrim,
+      lawan: validatedData.lawan,
+      map: validatedData.map.join(', '),
+      startMatch: validatedData.startMatch,
+      fraksi: validatedData.fraksi
+    });
     
-    // Update row in Google Sheets
-    await updateRow(fraksi, rowIndex, [
-      validatedData.tanggalScrim,
-      validatedData.lawan,
-      validatedData.map.join(', '),
-      validatedData.startMatch
-    ]);
+    if (!updateResult.success) {
+      throw new Error(updateResult.error || 'Failed to update schedule');
+    }
     
     // Invalidate cache for the affected fraksi
     invalidateCache(fraksi);
+    
+    // Create notification for updated scrim
+    try {
+      createNotification(
+        'scrim_updated',
+        `Scrim Schedule Updated - ${fraksi}`,
+        `Schedule ID ${id} has been updated with new details`,
+        {
+          scheduleId: id,
+          fraksi,
+          updatedAt: new Date().toISOString(),
+          updatedData: validatedData
+        }
+      );
+    } catch (notificationError) {
+      console.error('Failed to create update notification:', notificationError);
+      // Don't fail the operation if notification fails
+    }
     
     console.log('Successfully updated schedule');
     return NextResponse.json({ ok: true }, { status: 200 });

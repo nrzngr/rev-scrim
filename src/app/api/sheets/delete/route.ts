@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteRow } from '@/lib/google-sheets';
-import { invalidateCache } from '@/app/api/sheets/fetch/route';
+import { deleteScheduleWithRelatedRecords } from '@/lib/supabase';
+import { createNotification } from '@/app/api/notifications/route';
 
 export async function DELETE(request: NextRequest) {
   try {
+    console.log('Processing DELETE request for schedule');
     const body = await request.json();
     
     const { id, fraksi } = body;
@@ -22,19 +23,44 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    // Convert unique ID back to row index
-    // Fraksi 1 IDs: 1001, 1002, etc. -> row index 1, 2, etc.
-    // Fraksi 2 IDs: 2001, 2002, etc. -> row index 1, 2, etc.
-    const fraksiOffset = fraksi === "Fraksi 1" ? 1000 : 2000;
-    const rowIndex = id - fraksiOffset;
+    console.log(`Attempting to delete schedule ${id} from ${fraksi}`);
     
-    // Delete row from Google Sheets
-    await deleteRow(fraksi, rowIndex);
+    // Delete the schedule and all related records
+    let result;
+    try {
+      result = await deleteScheduleWithRelatedRecords(id, fraksi as "Fraksi 1" | "Fraksi 2");
+      console.log('deleteScheduleWithRelatedRecords function call successful. Result:', result);
+    } catch (deleteError) {
+      console.error('Caught specific error from deleteScheduleWithRelatedRecords function:', deleteError);
+      // Re-throw the error to be caught by the outer try-catch
+      throw deleteError;
+    }
     
-    // Invalidate cache for the affected fraksi
-    invalidateCache(fraksi);
+    // The deleteScheduleWithRelatedRecords function throws an error on failure,
+    // so if we reach here, it was successful.
+    console.log('Successfully deleted schedule and related records');
     
-    return NextResponse.json({ ok: true }, { status: 200 });
+    // Create notification for deleted scrim
+    try {
+      createNotification(
+        'scrim_deleted',
+        `Scrim Schedule Deleted - ${fraksi}`,
+        `Schedule ID ${id} from ${fraksi} has been deleted.`,
+        {
+          scheduleId: id,
+          fraksi,
+          deletedAt: new Date().toISOString()
+        }
+      );
+    } catch (notificationError) {
+      console.error('Failed to create deletion notification:', notificationError);
+      // Don't fail the operation if notification fails
+    }
+    
+    return NextResponse.json({ 
+      ok: true, 
+      message: result.message || 'Schedule deleted successfully' 
+    }, { status: 200 });
     
   } catch (error) {
     console.error('Error in /api/sheets/delete:', error);

@@ -1,75 +1,95 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { PlusIcon, CalendarIcon, TrophyIcon } from "lucide-react";
+import { PlusIcon, CalendarIcon, TrophyIcon, BarChart3Icon, UsersIcon } from "lucide-react";
 
+import { ResponsiveLayout } from "@/components/ui/responsive-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Form } from "@/components/ui/form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker, TimePicker, FraksiSelect, MapMultiSelect } from "@/components/form-fields";
 import { ScheduleView } from "@/components/schedule-view";
 import { CalendarView } from "@/components/calendar-view";
 import { MatchHistoryView } from "@/components/match-history-view";
+import { StatisticsDashboard } from "@/components/statistics-dashboard";
+import { AttendanceHistoryDashboard } from "@/components/attendance-history-dashboard";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { Loading, FullPageLoading } from "@/components/ui/loading";
+import { ErrorDisplay, SuccessDisplay } from "@/components/ui/error-display";
 import { scrimFormSchema, type ScrimFormData } from "@/lib/validation";
 import Image from "next/image";
 
 export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<ScrimFormData>({
-    resolver: zodResolver(scrimFormSchema),
-    defaultValues: {
-      tanggalScrim: "",
-      lawan: "",
-      map: [],
-      startMatch: "",
-      fraksi: undefined,
-    },
-  });
+  // State for controlled components (complex inputs)
+  const [tanggalScrim, setTanggalScrim] = useState<string>("");
+  const [map, setMap] = useState<string[]>([]);
+  const [startMatch, setStartMatch] = useState<string>("");
+  const [fraksi, setFraksi] = useState<"Fraksi 1" | "Fraksi 2" | undefined>(undefined);
 
-  const onSubmit = useCallback(async (data: ScrimFormData) => {
-    if (isSubmitting) return; // Prevent double submission
-    
+  // State and Ref for the "Tim Lawan" input (hybrid approach)
+  const [lawan, setLawan] = useState<string>("");
+  const lawanRef = useRef<HTMLInputElement>(null);
+
+  // Sync ref with state on initial render and when state changes programmatically
+  useEffect(() => {
+    if (lawanRef.current) {
+      lawanRef.current.value = lawan;
+    }
+  }, [lawan]);
+
+  // Manual submission handler
+  const onSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+
+    // Construct the payload, reading the "lawan" value from the state
+    const payload: ScrimFormData = {
+      tanggalScrim,
+      lawan, // Read from state
+      map,
+      startMatch,
+      fraksi: fraksi || "Fraksi 1", // Default to "Fraksi 1" if undefined
+    };
+
+    const validationResult = scrimFormSchema.safeParse(payload);
+    if (!validationResult.success) {
+      toast.error("Form tidak valid. Silakan periksa kembali input Anda.");
+      console.error("Validation Error:", validationResult.error.issues);
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      // Add timeout to prevent hanging requests
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       
       const response = await fetch("/api/sheets/append", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validationResult.data),
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
       const result = await response.json();
-
       if (result.ok) {
         toast.success("Scrim berhasil dijadwalkan!");
-        form.reset();
+        // The form will now retain its values as requested.
       } else {
+        console.error("API Error Response:", result);
         toast.error(result.error || "Gagal menjadwalkan scrim");
       }
     } catch (error) {
       console.error("Error submitting form:", error);
-      
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           toast.error("Permintaan terlalu lama. Silakan coba lagi.");
@@ -82,147 +102,152 @@ export default function Home() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, form]);
+  }, [isSubmitting, tanggalScrim, lawan, map, startMatch, fraksi]);
 
   const ScrimForm = () => (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Mobile-Optimized Form Header */}
+      <div className="text-center lg:text-left">
+        <h2 className="text-2xl lg:text-3xl font-bold text-white mb-2">
+          Jadwalkan Scrim Baru
+        </h2>
+        <p className="text-gray-400 text-sm lg:text-base">
+          Isi detail match untuk menjadwalkan scrim dengan tim lawan
+        </p>
+      </div>
 
       {/* Enhanced Form Card */}
-      <Card className="border-gray-700 bg-gradient-to-br from-gray-800 via-gray-800 to-gray-850 shadow-2xl">
-        <CardContent className="p-8">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              
-              {/* Match Details Section */}
-              <div className="space-y-6">
-                <div className="pb-4 border-b border-gray-700">
-                  <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
-                    <CalendarIcon className="h-5 w-5 text-blue-400" />
-                    Detail Match
-                  </h3>
-                </div>
-
-                {/* Date and Time Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <label className="text-base font-semibold text-white flex items-center gap-2">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      Tanggal Match
-                    </label>
-                    <div className="relative group">
-                      <DatePicker
-                        value={form.watch("tanggalScrim") ? new Date(form.watch("tanggalScrim")) : undefined}
-                        onChange={(date) => {
-                          form.setValue("tanggalScrim", date ? format(date, "yyyy-MM-dd") : "");
-                        }}
-                        placeholder="Pilih tanggal"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-base font-semibold text-white flex items-center gap-2">
-                      <div className="w-2 h-2 bg-teal-400 rounded-full"></div>
-                      Waktu Mulai
-                    </label>
-                    <div className="relative group">
-                      <TimePicker
-                        value={form.watch("startMatch")}
-                        onChange={(value) => form.setValue("startMatch", value)}
-                        placeholder="HH:mm"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Opponent Section */}
-                <div className="space-y-3">
-                  <label className="text-base font-semibold text-white flex items-center gap-2">
-                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                    Tim Lawan
-                  </label>
-                  <div className="relative group">
-                    <Input 
-                      {...form.register("lawan")}
-                      placeholder="Masukkan nama tim lawan" 
-                      className="h-12 text-base bg-gray-700/50 border-gray-600 focus:border-orange-400 focus:ring-orange-400/20"
-                      disabled={isSubmitting}
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center">
-                        <span className="text-orange-400 text-sm">👥</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Map Selection */}
-                <div className="space-y-3">
-                  <label className="text-base font-semibold text-white flex items-center gap-2">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    Map
-                  </label>
-                  <MapMultiSelect
-                    value={form.watch("map") || []}
-                    onChange={(value) => form.setValue("map", value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              {/* Team Section */}
-              <div className="space-y-6">
-                <div className="pb-4 border-b border-gray-700">
-                  <h3 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
-                    <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">REV</span>
-                    </div>
-                    Penugasan Fraksi
-                  </h3>
-                  <p className="text-gray-400 text-sm">Fraksi REV mana yang akan bermain dalam scrim ini?</p>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-base font-semibold text-white flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    Fraksi REV
-                  </label>
-                  <FraksiSelect
-                    value={form.watch("fraksi") || ""}
-                    onChange={(value) => form.setValue("fraksi", value as "Fraksi 1" | "Fraksi 2")}
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <div className="pt-6">
-                <Button 
-                  type="submit" 
+      <Card className="border-gray-800 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 shadow-2xl overflow-hidden">
+        <CardHeader className="pb-4 border-b border-gray-800">
+          <CardTitle className="flex items-center gap-3 text-lg lg:text-xl">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+              <CalendarIcon className="h-5 w-5 lg:h-6 lg:w-6 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white">Detail Match</h3>
+              <p className="text-xs lg:text-sm text-gray-400">Informasi penting untuk jadwal scrim</p>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        
+        <CardContent className="p-4 lg:p-6">
+          <form onSubmit={onSubmit} className="space-y-6">
+            
+            {/* Date and Time - Enhanced Mobile Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+              <div className="space-y-3">
+                <label className="text-sm lg:text-base font-semibold text-white flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                  Tanggal Match
+                </label>
+                <DatePicker
+                  value={tanggalScrim ? new Date(tanggalScrim) : undefined}
+                  onChange={(date) => setTanggalScrim(date ? format(date, "yyyy-MM-dd") : "")}
+                  placeholder="Pilih tanggal"
                   disabled={isSubmitting}
-                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 shadow-lg hover:shadow-xl transition-all duration-200 group"
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      Menjadwalkan Scrim...
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <PlusIcon className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                      Jadwalkan Scrim
-                    </div>
-                  )}
-                </Button>
+                />
               </div>
-            </form>
-          </Form>
 
-          {/* Enhanced Footer Link */}
+              <div className="space-y-3">
+                <label className="text-sm lg:text-base font-semibold text-white flex items-center gap-2">
+                  <div className="w-2 h-2 bg-teal-400 rounded-full"></div>
+                  Waktu Mulai
+                </label>
+                <TimePicker
+                  value={startMatch}
+                  onChange={(value) => setStartMatch(value)}
+                  placeholder="HH:mm"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            {/* Opponent Section - Hybrid Controlled/Uncontrolled */}
+            <div className="space-y-3">
+              <label className="text-sm lg:text-base font-semibold text-white flex items-center gap-2">
+                <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                Tim Lawan
+              </label>
+              <div className="relative">
+                <Input 
+                  ref={lawanRef}
+                  value={lawan} // Controlled by state for persistence
+                  onChange={(e) => {
+                    // Update both the ref and state for immediate feedback and proper React behavior
+                    if (lawanRef.current) {
+                      lawanRef.current.value = e.target.value;
+                    }
+                    setLawan(e.target.value);
+                  }}
+                  onBlur={(e) => {
+                    // When the user leaves the input, ensure the state is synced
+                    setLawan(e.target.value);
+                  }}
+                  placeholder="Masukkan nama tim lawan" 
+                  className="h-12 lg:h-14 text-base bg-gray-800/50 border-gray-700 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl"
+                  disabled={isSubmitting}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-8 h-8 lg:w-10 lg:h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
+                    <span className="text-orange-400 text-sm lg:text-base">👥</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Map Selection */}
+            <div className="space-y-3">
+              <label className="text-sm lg:text-base font-semibold text-white flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                Map
+              </label>
+              <MapMultiSelect
+                value={map}
+                onChange={(value) => setMap(value)}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            {/* Team Section */}
+            <div className="space-y-4 pt-4 border-t border-gray-800">
+              <div className="space-y-3">
+                <label className="text-sm lg:text-base font-semibold text-white flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  Fraksi REV
+                </label>
+                <FraksiSelect
+                  value={fraksi || ""}
+                  onChange={(value) => setFraksi(value as "Fraksi 1" | "Fraksi 2" | undefined)}
+                  disabled={isSubmitting}
+                />
+                <p className="text-xs lg:text-sm text-gray-400">
+                  Pilih fraksi yang akan bertanding dalam scrim ini
+                </p>
+              </div>
+            </div>
+
+            {/* Submit Button - Enhanced */}
+            <div className="pt-4">
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full h-14 lg:h-16 text-base lg:text-lg font-semibold bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Menjadwalkan Scrim...
+                  </div>
+                ) : (
+                  "Jadwalkan Scrim"
+                )}
+              </Button>
+            </div>
+          </form>
+
+          {/* Google Sheets Link - Enhanced */}
           {process.env.NEXT_PUBLIC_GOOGLE_SHEETS_ID && (
-            <div className="mt-8 pt-6 border-t border-gray-700">
+            <div className="mt-6 pt-4 border-t border-gray-800">
               <div className="text-center">
                 <a
                   href={`https://docs.google.com/spreadsheets/d/${process.env.NEXT_PUBLIC_GOOGLE_SHEETS_ID}`}
@@ -245,93 +270,76 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="container mx-auto px-4 py-4 sm:py-6 md:py-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8 text-center">
-          <div className="flex justify-center mb-4">
-            <Image 
-              src="/logo_REV.jpg" 
-              alt="REV Logo" 
-              width={96}
-              height={96}
-              className="h-24 w-auto"
-              priority
-            />
-          </div>
-        </div>
+    <ResponsiveLayout>
+      {({ activeTab, setActiveTab }) => (
+        <>
+          {/* Main Content */}
+          <div className="space-y-6 lg:space-y-8">
+            {/* Tab Content */}
+            <div className="bg-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-4 lg:p-6">
+              {activeTab === "input" && (
+                <ErrorBoundary>
+                  <ScrimForm />
+                </ErrorBoundary>
+              )}
+              
+              {activeTab === "schedule" && (
+                <ErrorBoundary>
+                  <ScheduleView />
+                </ErrorBoundary>
+              )}
+              
+              {activeTab === "calendar" && (
+                <ErrorBoundary>
+                  <CalendarView />
+                </ErrorBoundary>
+              )}
 
-        {/* Main Content */}
-        <div className="max-w-5xl mx-auto">
-          <Tabs defaultValue="input" className="w-full">
-            {/* Enhanced Navigation */}
-            <div className="mb-6 sm:mb-8">
-              <TabsList className="grid w-full grid-cols-4 h-14 sm:h-16 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 p-1 rounded-xl">
-                <TabsTrigger
-                  value="input"
-                  className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base font-medium h-12 sm:h-14 px-2 sm:px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-400 transition-all duration-200 rounded-lg"
-                >
-                  <div className="p-1 sm:p-1.5 bg-blue-500/20 rounded-lg">
-                    <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-medium leading-tight">Create</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="schedule"
-                  className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base font-medium h-12 sm:h-14 px-2 sm:px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-teal-600 data-[state=active]:text-white text-gray-400 transition-all duration-200 rounded-lg"
-                >
-                  <div className="p-1 sm:p-1.5 bg-green-500/20 rounded-lg">
-                    <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-medium leading-tight">Schedule</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="calendar"
-                  className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base font-medium h-12 sm:h-14 px-2 sm:px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-400 transition-all duration-200 rounded-lg"
-                >
-                  <div className="p-1 sm:p-1.5 bg-amber-500/20 rounded-lg">
-                    <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-medium leading-tight">Calendar</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="history"
-                  className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base font-medium h-12 sm:h-14 px-2 sm:px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-500 data-[state=active]:to-pink-600 data-[state=active]:text-white text-gray-400 transition-all duration-200 rounded-lg"
-                >
-                  <div className="p-1 sm:p-1.5 bg-rose-500/20 rounded-lg">
-                    <TrophyIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-medium leading-tight">History</span>
-                </TabsTrigger>
-              </TabsList>
+              {activeTab === "history" && (
+                <ErrorBoundary>
+                  <MatchHistoryView />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "statistics" && (
+                <ErrorBoundary>
+                  <StatisticsDashboard />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "attendance" && (
+                <ErrorBoundary>
+                  <AttendanceHistoryDashboard />
+                </ErrorBoundary>
+              )}
             </div>
-            
-            <TabsContent value="input" className="space-y-6 mt-0">
-              <ErrorBoundary>
-                <ScrimForm />
-              </ErrorBoundary>
-            </TabsContent>
-            
-            <TabsContent value="schedule" className="space-y-6 mt-0">
-              <ErrorBoundary>
-                <ScheduleView />
-              </ErrorBoundary>
-            </TabsContent>
-            
-            <TabsContent value="calendar" className="space-y-6 mt-0">
-              <ErrorBoundary>
-                <CalendarView />
-              </ErrorBoundary>
-            </TabsContent>
 
-            <TabsContent value="history" className="space-y-6 mt-0">
-              <ErrorBoundary>
-                <MatchHistoryView />
-              </ErrorBoundary>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
-    </div>
+            {/* Quick Actions - Mobile Optimized */}
+            <div className="lg:hidden">
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab("statistics")}
+                  className="h-12 text-xs"
+                >
+                  <BarChart3Icon className="h-4 w-4 mr-2" />
+                  Stats
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab("attendance")}
+                  className="h-12 text-xs"
+                >
+                  <UsersIcon className="h-4 w-4 mr-2" />
+                  Attendance
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </ResponsiveLayout>
   );
 }

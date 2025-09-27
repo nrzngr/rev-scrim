@@ -75,9 +75,14 @@ export function ScheduleView() {
   const fetchScheduleData = async (abortSignal?: AbortSignal) => {
     try {
       // Add request timeout and abort signal support
-      const fetchWithTimeout = (url: string, timeout = 10000) => {
+      const fetchWithTimeout = (url: string, timeout = 15000) => {
         return Promise.race([
-          fetch(url, { signal: abortSignal }),
+          fetch(url, { 
+            signal: abortSignal,
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          }),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Request timeout')), timeout)
           )
@@ -86,12 +91,35 @@ export function ScheduleView() {
 
       const [fraksi1Response, fraksi2Response] = await Promise.all([
         fetchWithTimeout('/api/sheets/fetch?fraksi=Fraksi 1'),
-        fetchWithTimeout('/api/sheets/fetch?fraksi=Fraksi 2') // Fixed: Changed from "2" to "Fraksi 2"
+        fetchWithTimeout('/api/sheets/fetch?fraksi=Fraksi 2')
       ]);
 
       // Check if request was aborted
       if (abortSignal?.aborted) {
         return;
+      }
+
+      // Check response status before parsing JSON
+      if (!fraksi1Response.ok || !fraksi2Response.ok) {
+        console.error('API response error:', {
+          fraksi1Status: fraksi1Response.status,
+          fraksi2Status: fraksi2Response.status,
+          fraksi1Text: await fraksi1Response.text(),
+          fraksi2Text: await fraksi2Response.text()
+        });
+        throw new Error('API request failed');
+      }
+
+      // Check content type before parsing JSON
+      const fraksi1ContentType = fraksi1Response.headers.get('content-type');
+      const fraksi2ContentType = fraksi2Response.headers.get('content-type');
+      
+      if (!fraksi1ContentType?.includes('application/json') || !fraksi2ContentType?.includes('application/json')) {
+        console.error('Invalid content type:', {
+          fraksi1ContentType,
+          fraksi2ContentType
+        });
+        throw new Error('Invalid response content type');
       }
 
       const fraksi1Data = await fraksi1Response.json();
@@ -103,7 +131,8 @@ export function ScheduleView() {
           fraksi2: fraksi2Data.data || []
         });
       } else {
-        throw new Error('Failed to fetch schedule data');
+        console.error('API response error:', { fraksi1Data, fraksi2Data });
+        throw new Error(fraksi1Data.error || fraksi2Data.error || 'Failed to fetch schedule data');
       }
     } catch (error) {
       // Don't show error if request was aborted (component unmounted)
@@ -505,7 +534,13 @@ export function ScheduleView() {
     
     return schedules
       .filter(schedule => {
-        if (!schedule.tanggalScrim || !schedule.startMatch) return false;
+        console.log(`[Filter] Processing schedule:`, schedule);
+
+        // Check 1: Missing date or time
+        if (!schedule.tanggalScrim || !schedule.startMatch) {
+          console.log(`[Filter] SKIPPED (Missing Date/Time):`, schedule);
+          return false;
+        }
         
         try {
           const scrimDate = parseISO(schedule.tanggalScrim);
@@ -513,18 +548,45 @@ export function ScheduleView() {
           const scrimDateTime = new Date(scrimDate);
           scrimDateTime.setHours(hours, minutes, 0, 0);
           
-          // Show matches from 7 days ago to future
+          // Check 2: Older than 7 days
           const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          if (scrimDateTime < sevenDaysAgo) {
+            console.log(`[Filter] SKIPPED (Older than 7 days):`, schedule, `Scrim DateTime: ${scrimDateTime.toISOString()}, Seven Days Ago: ${sevenDaysAgo.toISOString()}`);
+            return false;
+          }
           
-          if (scrimDateTime < sevenDaysAgo) return false;
+          // Check 3: Has a result
+          // Match by opponent and timestamp, not scheduleId
+          const hasResult = matchResults.some(result => {
+            // Find the original schedule for this match result to get its opponent and timestamp
+            const allSchedules = [...scheduleData.fraksi1, ...scheduleData.fraksi2];
+            const resultSchedule = allSchedules.find(s => s.id === result.scheduleId);
+            
+            if (!resultSchedule || !resultSchedule.tanggalScrim || !resultSchedule.startMatch) {
+              return false; // Skip if result's schedule is malformed
+            }
+
+            const resultScrimDate = parseISO(resultSchedule.tanggalScrim);
+            const [resultHours, resultMinutes] = resultSchedule.startMatch.split(':').map(Number);
+            const resultScrimDateTime = new Date(resultScrimDate);
+            resultScrimDateTime.setHours(resultHours, resultMinutes, 0, 0);
+
+            // Compare opponent and timestamp of the current schedule with the result's parent schedule
+            return (
+              schedule.lawan.trim().toLowerCase() === resultSchedule.lawan.trim().toLowerCase() &&
+              scrimDateTime.getTime() === resultScrimDateTime.getTime()
+            );
+          });
+
+          if (hasResult) {
+            console.log(`[Filter] SKIPPED (Has Result):`, schedule);
+            return false;
+          }
           
-          // HIDE matches that already have results recorded
-          const hasResult = matchResults.some(result => 
-            result.scheduleId === schedule.id && result.fraksi === fraksiName
-          );
-          
-          return !hasResult; // Only show matches WITHOUT results
-        } catch {
+          console.log(`[Filter] PASSED all checks for schedule:`, schedule);
+          return true; // Only show matches that pass all checks
+        } catch (error) {
+          console.log(`[Filter] SKIPPED (Error in date parsing):`, schedule, error);
           return false;
         }
       })
@@ -550,7 +612,7 @@ export function ScheduleView() {
           return 0;
         }
       });
-  }, [matchResults]);
+  }, [matchResults, scheduleData.fraksi1, scheduleData.fraksi2]); // Added scheduleData dependencies
 
   // Memoized filtered schedules - only filter when all data is loaded
   const filteredFraksi1Schedules = useMemo(
