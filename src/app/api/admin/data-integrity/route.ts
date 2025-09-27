@@ -1,5 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateDataIntegrity, cleanupOrphanedRecords } from '@/lib/google-sheets';
+import { validateDataIntegrity } from '@/lib/supabase';
+
+// Helper function to cleanup orphaned records
+async function cleanupOrphanedRecords(): Promise<{ success: boolean; attendanceRemoved: number; matchResultsRemoved: number; error?: string }> {
+  try {
+    console.log('Starting cleanup of orphaned records');
+
+    // Get all data
+    const schedulesResult = await validateDataIntegrity();
+    if (!schedulesResult.success) {
+      return { success: false, attendanceRemoved: 0, matchResultsRemoved: 0, error: 'Failed to fetch data for cleanup' };
+    }
+
+    // Get individual records to check for orphans
+    const { getSchedules, getAttendance, getMatchResults, deleteAttendance, deleteMatchResult } = await import('@/lib/supabase');
+    const schedules = await getSchedules();
+    const attendance = await getAttendance();
+    const matchResults = await getMatchResults();
+
+    if (!schedules.success || !attendance.success || !matchResults.success) {
+      return { success: false, attendanceRemoved: 0, matchResultsRemoved: 0, error: 'Failed to fetch data for cleanup' };
+    }
+
+    const scheduleIds = new Set(schedules.data.map(s => s.id));
+
+    let attendanceRemoved = 0;
+    let matchResultsRemoved = 0;
+
+    // Clean up orphaned attendance records
+    for (const record of attendance.data) {
+      if (!scheduleIds.has(record.scheduleId)) {
+        const deleteResult = await deleteAttendance(record.id);
+        if (deleteResult.success) {
+          attendanceRemoved++;
+        }
+      }
+    }
+
+    // Clean up orphaned match results
+    for (const record of matchResults.data) {
+      if (!scheduleIds.has(record.scheduleId)) {
+        const deleteResult = await deleteMatchResult(record.id);
+        if (deleteResult.success) {
+          matchResultsRemoved++;
+        }
+      }
+    }
+
+    console.log(`Cleanup completed: removed ${attendanceRemoved} attendance records and ${matchResultsRemoved} match result records`);
+
+    return {
+      success: true,
+      attendanceRemoved,
+      matchResultsRemoved
+    };
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    return {
+      success: false,
+      attendanceRemoved: 0,
+      matchResultsRemoved: 0,
+      error: error instanceof Error ? error.message : 'Unknown cleanup error'
+    };
+  }
+}
 
 // GET - Validate data integrity
 export async function GET(request: NextRequest) {

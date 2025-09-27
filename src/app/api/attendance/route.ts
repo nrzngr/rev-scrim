@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAttendance, createAttendance, deleteAttendance } from '@/lib/supabase';
+import { getAttendance, createAttendance, deleteAttendance, type Attendance } from '@/lib/supabase';
 import { createNotification } from '@/app/api/notifications/route';
 
 // Simple in-memory cache
 const attendanceCache = {
-  data: null as any,
+  data: null as Attendance[] | null,
   timestamp: 0,
   ttl: 30000 // 30 seconds cache
 };
@@ -23,12 +23,12 @@ export async function GET(request: NextRequest) {
     
     // Filter by schedule ID if provided
     if (scheduleId) {
-      filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+      filteredData = filteredData.filter((record: Attendance) => record.scheduleId === parseInt(scheduleId));
     }
     
     // Filter by fraksi if provided
     if (fraksi) {
-      filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+      filteredData = filteredData.filter((record: Attendance) => record.fraksi === fraksi);
     }
 
     return NextResponse.json({ 
@@ -52,11 +52,11 @@ export async function GET(request: NextRequest) {
         let filteredData = attendanceCache.data;
         
         if (scheduleId) {
-          filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+          filteredData = filteredData.filter((record: Attendance) => record.scheduleId === parseInt(scheduleId));
         }
         
         if (fraksi) {
-          filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+          filteredData = filteredData.filter((record: Attendance) => record.fraksi === fraksi);
         }
 
         return NextResponse.json({ 
@@ -79,12 +79,12 @@ export async function GET(request: NextRequest) {
     
     // Filter by schedule ID if provided (in case it wasn't filtered in the query)
     if (scheduleId && !fraksi) {
-      filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+      filteredData = filteredData.filter((record: Attendance) => record.scheduleId === parseInt(scheduleId));
     }
     
     // Filter by fraksi if provided (in case it wasn't filtered in the query)
     if (fraksi && !scheduleId) {
-      filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+      filteredData = filteredData.filter((record: Attendance) => record.fraksi === fraksi);
     }
     
     return NextResponse.json({ 
@@ -106,11 +106,11 @@ export async function GET(request: NextRequest) {
       let filteredData = attendanceCache.data;
       
       if (scheduleId) {
-        filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+        filteredData = filteredData.filter((record: Attendance) => record.scheduleId === parseInt(scheduleId));
       }
       
       if (fraksi) {
-        filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+        filteredData = filteredData.filter((record: Attendance) => record.fraksi === fraksi);
       }
 
       return NextResponse.json({ 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteScheduleWithRelatedRecords } from '@/lib/google-sheets';
+import { deleteScheduleWithRelatedRecords } from '@/lib/supabase';
 
 export async function DELETE(request: NextRequest) {
   try {

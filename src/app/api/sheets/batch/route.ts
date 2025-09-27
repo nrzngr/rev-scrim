@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  appendRow, 
-  getSheetData, 
-  updateRow, 
-  deleteRow, 
-  appendAttendanceRow, 
-  getAttendanceData, 
-  deleteAttendanceRow,
-  appendMatchResultRow,
-  getMatchResultsData,
-  updateMatchResultRow,
-  deleteMatchResultRow
-} from '@/lib/google-sheets';
+import {
+  getSchedules,
+  createSchedule,
+  updateSchedule,
+  deleteSchedule,
+  getAttendance,
+  createAttendance,
+  deleteAttendance,
+  createMatchResult,
+  updateMatchResult,
+  deleteMatchResult
+} from '@/lib/supabase';
 import { invalidateCache } from '@/app/api/sheets/fetch/route';
 import { scrimFormSchema, attendanceSchema, matchResultSchema } from '@/lib/validation';
 
@@ -131,104 +130,81 @@ export async function POST(request: NextRequest) {
 
 async function processScheduleOperation(operation: BatchOperation) {
   const { type, data } = operation;
-  
+
   switch (type) {
     case 'create':
       // Validate schedule data
       const validatedCreateData = scrimFormSchema.parse(data);
-      
-      // Check for duplicates
-      const existingData = await getSheetData(validatedCreateData.fraksi);
-      if (existingData.success) {
-        const isDuplicate = existingData.data.some((schedule: { tanggalScrim: string; lawan: string; startMatch: string }) => 
-          schedule.tanggalScrim === validatedCreateData.tanggalScrim && 
-          schedule.lawan === validatedCreateData.lawan && 
-          schedule.startMatch === validatedCreateData.startMatch
-        );
-        
-        if (isDuplicate) {
-          throw new Error('Schedule with the same date, opponent, and time already exists');
-        }
+
+      // Create schedule (Supabase handles duplicate checking)
+      const createResult = await createSchedule({
+        tanggalScrim: validatedCreateData.tanggalScrim,
+        lawan: validatedCreateData.lawan,
+        map: validatedCreateData.map.join(', '),
+        startMatch: validatedCreateData.startMatch,
+        fraksi: validatedCreateData.fraksi
+      });
+
+      if (!createResult.success) {
+        throw new Error(createResult.error || 'Failed to create schedule');
       }
-      
-      // Create schedule
-      await appendRow(validatedCreateData.fraksi, [
-        validatedCreateData.tanggalScrim, 
-        validatedCreateData.lawan, 
-        validatedCreateData.map.join(', '), 
-        validatedCreateData.startMatch
-      ]);
-      
-      return { message: 'Schedule created successfully' };
-      
+
+      return { message: 'Schedule created successfully', data: createResult.data };
+
     case 'update':
       // Validate ID and fraksi
       const { id, fraksi, ...updateData } = data;
-      
+
       if (!id || typeof id !== 'number') {
         throw new Error('Valid ID is required');
       }
-      
+
       if (!fraksi || (fraksi !== "Fraksi 1" && fraksi !== "Fraksi 2")) {
         throw new Error('Valid fraksi is required');
       }
-      
+
       // Validate schedule data
       const validatedUpdateData = scrimFormSchema.parse({
         ...updateData,
         fraksi
       });
-      
-      // Check for duplicates (excluding current record)
-      const existingUpdateData = await getSheetData(fraksi);
-      if (existingUpdateData.success) {
-        const isDuplicate = existingUpdateData.data.some((schedule: { id: number; tanggalScrim: string; lawan: string; startMatch: string }) => 
-          schedule.id !== id &&
-          schedule.tanggalScrim === validatedUpdateData.tanggalScrim && 
-          schedule.lawan === validatedUpdateData.lawan && 
-          schedule.startMatch === validatedUpdateData.startMatch
-        );
-        
-        if (isDuplicate) {
-          throw new Error('Schedule with the same date, opponent, and time already exists');
-        }
-      }
-      
-      // Convert unique ID back to row index
-      const fraksiOffset = fraksi === "Fraksi 1" ? 1000 : 2000;
-      const rowIndex = id - fraksiOffset;
-      
+
       // Update schedule
-      await updateRow(fraksi, rowIndex, [
-        validatedUpdateData.tanggalScrim, 
-        validatedUpdateData.lawan, 
-        validatedUpdateData.map.join(', '), 
-        validatedUpdateData.startMatch
-      ]);
-      
-      return { message: 'Schedule updated successfully' };
-      
+      const updateResult = await updateSchedule(id, {
+        tanggalScrim: validatedUpdateData.tanggalScrim,
+        lawan: validatedUpdateData.lawan,
+        map: validatedUpdateData.map.join(', '),
+        startMatch: validatedUpdateData.startMatch,
+        fraksi: validatedUpdateData.fraksi
+      });
+
+      if (!updateResult.success) {
+        throw new Error(updateResult.error || 'Failed to update schedule');
+      }
+
+      return { message: 'Schedule updated successfully', data: updateResult.data };
+
     case 'delete':
       // Validate ID and fraksi
       const { id: deleteId, fraksi: deleteFraksi } = data;
-      
+
       if (!deleteId || typeof deleteId !== 'number') {
         throw new Error('Valid ID is required');
       }
-      
+
       if (!deleteFraksi || (deleteFraksi !== "Fraksi 1" && deleteFraksi !== "Fraksi 2")) {
         throw new Error('Valid fraksi is required');
       }
-      
-      // Convert unique ID back to row index
-      const deleteFraksiOffset = deleteFraksi === "Fraksi 1" ? 1000 : 2000;
-      const deleteRowIndex = deleteId - deleteFraksiOffset;
-      
+
       // Delete schedule
-      await deleteRow(deleteFraksi, deleteRowIndex);
-      
+      const deleteResult = await deleteSchedule(deleteId);
+
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.error || 'Failed to delete schedule');
+      }
+
       return { message: 'Schedule deleted successfully' };
-      
+
     default:
       throw new Error(`Unknown operation type: ${type}`);
   }
@@ -236,75 +212,67 @@ async function processScheduleOperation(operation: BatchOperation) {
 
 async function processAttendanceOperation(operation: BatchOperation) {
   const { type, data } = operation;
-  
+
   switch (type) {
     case 'create':
       // Validate attendance data
       const validatedCreateData = attendanceSchema.parse(data);
-      
-      // Check for duplicates
-      const existingAttendance = await getAttendanceData();
-      if (existingAttendance.success) {
-        const isDuplicate = existingAttendance.data.some(record => 
-          record.scheduleId === validatedCreateData.scheduleId && 
-          record.fraksi === validatedCreateData.fraksi && 
-          record.playerName.toLowerCase() === validatedCreateData.playerName.toLowerCase()
-        );
-        
-        if (isDuplicate) {
-          throw new Error('Attendance record for this player already exists');
-        }
+
+      // Create attendance record (Supabase handles duplicate checking)
+      const createResult = await createAttendance({
+        scheduleId: validatedCreateData.scheduleId,
+        fraksi: validatedCreateData.fraksi,
+        playerName: validatedCreateData.playerName,
+        status: 'unavailable',
+        reason: validatedCreateData.reason || '',
+        timestamp: new Date().toISOString()
+      });
+
+      if (!createResult.success) {
+        throw new Error(createResult.error || 'Failed to create attendance record');
       }
-      
-      // Convert unique schedule ID back to original ID for storage
-      const fraksiOffset = validatedCreateData.fraksi === "Fraksi 1" ? 1000 : 2000;
-      const originalScheduleId = validatedCreateData.scheduleId - fraksiOffset;
-      
-      // Create attendance record
-      await appendAttendanceRow([
-        originalScheduleId.toString(),
-        validatedCreateData.fraksi,
-        validatedCreateData.playerName,
-        'unavailable',
-        validatedCreateData.reason || '',
-        new Date().toISOString()
-      ]);
-      
-      return { message: 'Attendance record created successfully' };
-      
+
+      return { message: 'Attendance record created successfully', data: createResult.data };
+
     case 'delete':
       // Validate required fields
       const { scheduleId, fraksi, playerName } = data;
-      
+
       if (!scheduleId || typeof scheduleId !== 'number') {
         throw new Error('Valid scheduleId is required');
       }
-      
+
       if (!fraksi || (fraksi !== "Fraksi 1" && fraksi !== "Fraksi 2")) {
         throw new Error('Valid fraksi is required');
       }
-      
+
       if (!playerName || typeof playerName !== 'string') {
         throw new Error('Player name is required');
       }
-      
+
       // Find the record to delete
-      const existingDeleteData = await getAttendanceData();
-      const recordIndex = existingDeleteData.data.findIndex(record => 
-        record.scheduleId === scheduleId && 
-        record.fraksi === fraksi && 
+      const existingData = await getAttendance(scheduleId, fraksi);
+      if (!existingData.success) {
+        throw new Error('Failed to fetch attendance records');
+      }
+
+      const record = existingData.data.find(record =>
         record.playerName.toLowerCase() === playerName.toLowerCase()
       );
-      
-      if (recordIndex === -1) {
+
+      if (!record) {
         throw new Error('Attendance record not found');
       }
-      
+
       // Delete attendance record
-      await deleteAttendanceRow(recordIndex);
-      
+      const deleteResult = await deleteAttendance(record.id);
+
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.error || 'Failed to delete attendance record');
+      }
+
       return { message: 'Attendance record deleted successfully' };
-      
+
     default:
       throw new Error(`Unknown operation type: ${type} for attendance`);
   }
@@ -312,36 +280,21 @@ async function processAttendanceOperation(operation: BatchOperation) {
 
 async function processMatchResultOperation(operation: BatchOperation) {
   const { type, data } = operation;
-  
+
   switch (type) {
     case 'create':
       // Validate match result data
       const validatedCreateData = matchResultSchema.parse(data);
-      
-      // Check for duplicates
-      const existingMatchResults = await getMatchResultsData();
-      if (existingMatchResults.success) {
-        const isDuplicate = existingMatchResults.data.some(record => 
-          record.scheduleId === validatedCreateData.scheduleId && 
-          record.fraksi === validatedCreateData.fraksi
-        );
-        
-        if (isDuplicate) {
-          throw new Error('Match result for this schedule already exists');
-        }
-      }
-      
-      // Get opponent name
-      const fraksi1Data = await getSheetData("Fraksi 1");
-      const fraksi2Data = await getSheetData("Fraksi 2");
-      const allSchedules = [
-        ...(fraksi1Data.success ? fraksi1Data.data : []),
-        ...(fraksi2Data.success ? fraksi2Data.data : [])
-      ];
 
-      const schedule = allSchedules.find(s => s.id === validatedCreateData.scheduleId);
+      // Get opponent name from schedule
+      const schedulesResult = await getSchedules();
+      if (!schedulesResult.success) {
+        throw new Error('Failed to fetch schedules');
+      }
+
+      const schedule = schedulesResult.data.find(s => s.id === validatedCreateData.scheduleId);
       const opponent = schedule?.lawan || "Unknown";
-      
+
       // Determine match status
       let status: "win" | "loss" | "draw";
       if (validatedCreateData.revScore > validatedCreateData.opponentScore) {
@@ -351,21 +304,25 @@ async function processMatchResultOperation(operation: BatchOperation) {
       } else {
         status = "draw";
       }
-      
-      // Create match result
-      await appendMatchResultRow([
-        validatedCreateData.scheduleId.toString(),
-        validatedCreateData.fraksi,
+
+      // Create match result (Supabase handles duplicate checking)
+      const createResult = await createMatchResult({
+        scheduleId: validatedCreateData.scheduleId,
+        fraksi: validatedCreateData.fraksi,
         opponent,
-        validatedCreateData.revScore.toString(),
-        validatedCreateData.opponentScore.toString(),
+        revScore: validatedCreateData.revScore,
+        opponentScore: validatedCreateData.opponentScore,
         status,
-        validatedCreateData.notes || '',
-        validatedCreateData.recordedBy,
-        new Date().toISOString()
-      ]);
-      
-      return { 
+        notes: validatedCreateData.notes || '',
+        recordedBy: validatedCreateData.recordedBy,
+        timestamp: new Date().toISOString()
+      });
+
+      if (!createResult.success) {
+        throw new Error(createResult.error || 'Failed to create match result');
+      }
+
+      return {
         message: 'Match result created successfully',
         result: {
           scheduleId: validatedCreateData.scheduleId,
@@ -374,31 +331,30 @@ async function processMatchResultOperation(operation: BatchOperation) {
           revScore: validatedCreateData.revScore,
           opponentScore: validatedCreateData.opponentScore,
           status
-        }
+        },
+        data: createResult.data
       };
-      
+
     case 'update':
       // Validate ID
       const { id, ...updateData } = data;
-      
+
       if (!id || typeof id !== 'number') {
         throw new Error('Valid ID is required');
       }
-      
+
       // Validate match result data
       const validatedUpdateData = matchResultSchema.parse(updateData);
-      
-      // Get opponent name
-      const fraksi1UpdateData = await getSheetData("Fraksi 1");
-      const fraksi2UpdateData = await getSheetData("Fraksi 2");
-      const allUpdateSchedules = [
-        ...(fraksi1UpdateData.success ? fraksi1UpdateData.data : []),
-        ...(fraksi2UpdateData.success ? fraksi2UpdateData.data : [])
-      ];
 
-      const updateSchedule = allUpdateSchedules.find(s => s.id === validatedUpdateData.scheduleId);
+      // Get opponent name from schedule
+      const schedulesUpdateResult = await getSchedules();
+      if (!schedulesUpdateResult.success) {
+        throw new Error('Failed to fetch schedules');
+      }
+
+      const updateSchedule = schedulesUpdateResult.data.find(s => s.id === validatedUpdateData.scheduleId);
       const updateOpponent = updateSchedule?.lawan || "Unknown";
-      
+
       // Determine match status
       let updateStatus: "win" | "loss" | "draw";
       if (validatedUpdateData.revScore > validatedUpdateData.opponentScore) {
@@ -408,46 +364,43 @@ async function processMatchResultOperation(operation: BatchOperation) {
       } else {
         updateStatus = "draw";
       }
-      
+
       // Update match result
-      await updateMatchResultRow(id, [
-        validatedUpdateData.scheduleId.toString(),
-        validatedUpdateData.fraksi,
-        updateOpponent,
-        validatedUpdateData.revScore.toString(),
-        validatedUpdateData.opponentScore.toString(),
-        updateStatus,
-        validatedUpdateData.notes || '',
-        validatedUpdateData.recordedBy,
-        new Date().toISOString()
-      ]);
-      
-      return { message: 'Match result updated successfully' };
-      
+      const updateResult = await updateMatchResult(id, {
+        scheduleId: validatedUpdateData.scheduleId,
+        fraksi: validatedUpdateData.fraksi,
+        opponent: updateOpponent,
+        revScore: validatedUpdateData.revScore,
+        opponentScore: validatedUpdateData.opponentScore,
+        status: updateStatus,
+        notes: validatedUpdateData.notes || '',
+        recordedBy: validatedUpdateData.recordedBy,
+        timestamp: new Date().toISOString()
+      });
+
+      if (!updateResult.success) {
+        throw new Error(updateResult.error || 'Failed to update match result');
+      }
+
+      return { message: 'Match result updated successfully', data: updateResult.data };
+
     case 'delete':
       // Validate ID
       const { id: deleteId } = data;
-      
+
       if (!deleteId || typeof deleteId !== 'number') {
         throw new Error('Valid ID is required');
       }
-      
-      // Get current match results to find the row index
-      const currentResults = await getMatchResultsData();
-      if (!currentResults.success) {
-        throw new Error('Failed to fetch current match results');
-      }
-      
-      const resultIndex = currentResults.data.findIndex(result => result.id === deleteId);
-      if (resultIndex === -1) {
-        throw new Error('Match result not found');
-      }
-      
+
       // Delete match result
-      await deleteMatchResultRow(resultIndex);
-      
+      const deleteResult = await deleteMatchResult(deleteId);
+
+      if (!deleteResult.success) {
+        throw new Error(deleteResult.error || 'Failed to delete match result');
+      }
+
       return { message: 'Match result deleted successfully' };
-      
+
     default:
       throw new Error(`Unknown operation type: ${type} for match result`);
   }

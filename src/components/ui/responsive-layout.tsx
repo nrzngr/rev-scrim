@@ -33,7 +33,7 @@ export function ResponsiveLayout({ children, className }: ResponsiveLayoutProps)
       {/* Desktop Navigation */}
       <div className="hidden lg:flex">
         {/* Sidebar */}
-        <div className="w-80 flex-shrink-0 border-r border-gray-800">
+        <div className="w-72 flex-shrink-0 border-r border-gray-800">
           <DesktopNav 
             activeTab={activeTab} 
             onTabChange={setActiveTab}

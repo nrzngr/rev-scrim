@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Define notification data interface
+interface NotificationData {
+  scheduleId?: number;
+  fraksi?: string;
+  playerName?: string;
+  reason?: string;
+  status?: string;
+  opponent?: string;
+  result?: string;
+  [key: string]: unknown;
+}
+
 // In-memory storage for notifications (in production, use a database)
 export const notifications: Array<{
   id: string;
@@ -8,7 +20,7 @@ export const notifications: Array<{
   message: string;
   timestamp: string;
   read: boolean;
-  data?: any;
+  data?: NotificationData;
 }> = [];
 
 // Generate unique ID
@@ -21,7 +33,7 @@ export function createNotification(
   type: 'scrim_created' | 'scrim_updated' | 'scrim_deleted' | 'scrim_reminder' | 'match_result' | 'attendance_update',
   title: string,
   message: string,
-  data?: any
+  data?: NotificationData
 ): void {
   const notification = {
     id: generateId(),

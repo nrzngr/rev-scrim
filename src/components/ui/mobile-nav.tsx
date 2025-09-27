@@ -129,7 +129,7 @@ export function MobileNav({ activeTab, onTabChange, notificationCount = 0 }: Mob
               {/* Navigation Items */}
               <nav className="flex-1 overflow-y-auto py-6 px-4">
                 <div className="space-y-3">
-                  {tabs.map((tab, index) => {
+                  {tabs.map((tab) => {
                     const isActive = activeTab === tab.id;
                     const colors = getColorClasses(tab.color, isActive);
                     

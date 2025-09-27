@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { CalendarIcon, ClockIcon, MapIcon, UsersIcon, RefreshCwIcon, MoreVerticalIcon, EditIcon, TrashIcon, CheckIcon, XIcon } from "lucide-react";
+import { CalendarIcon, ClockIcon, MapIcon, UsersIcon, RefreshCwIcon, EditIcon, TrashIcon, CheckIcon, XIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";

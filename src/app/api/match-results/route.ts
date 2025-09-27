@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { matchResultSchema } from '@/lib/validation';
-import { getMatchResults, createMatchResult, updateMatchResult, deleteMatchResult, getSchedules } from '@/lib/supabase';
+import { getMatchResults, createMatchResult, updateMatchResult, deleteMatchResult, getSchedules, type MatchResult } from '@/lib/supabase';
 import { createNotification } from '@/app/api/notifications/route';
 
 // Simple in-memory cache
 const matchResultsCache = {
-  data: null as any,
+  data: null as MatchResult[] | null,
   timestamp: 0,
   ttl: 30000 // 30 seconds cache
 };
@@ -24,12 +24,12 @@ export async function GET(request: NextRequest) {
     
     // Filter by schedule ID if provided
     if (scheduleId) {
-      filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+      filteredData = filteredData.filter((record: MatchResult) => record.scheduleId === parseInt(scheduleId));
     }
     
     // Filter by fraksi if provided
     if (fraksi) {
-      filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+      filteredData = filteredData.filter((record: MatchResult) => record.fraksi === fraksi);
     }
 
     return NextResponse.json({ 
@@ -53,11 +53,11 @@ export async function GET(request: NextRequest) {
         let filteredData = matchResultsCache.data;
         
         if (scheduleId) {
-          filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+          filteredData = filteredData.filter((record: MatchResult) => record.scheduleId === parseInt(scheduleId));
         }
         
         if (fraksi) {
-          filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+          filteredData = filteredData.filter((record: MatchResult) => record.fraksi === fraksi);
         }
 
         return NextResponse.json({ 
@@ -80,12 +80,12 @@ export async function GET(request: NextRequest) {
     
     // Filter by schedule ID if provided (in case it wasn't filtered in the query)
     if (scheduleId && !fraksi) {
-      filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+      filteredData = filteredData.filter((record: MatchResult) => record.scheduleId === parseInt(scheduleId));
     }
     
     // Filter by fraksi if provided (in case it wasn't filtered in the query)
     if (fraksi && !scheduleId) {
-      filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+      filteredData = filteredData.filter((record: MatchResult) => record.fraksi === fraksi);
     }
     
     return NextResponse.json({ 
@@ -107,11 +107,11 @@ export async function GET(request: NextRequest) {
       let filteredData = matchResultsCache.data;
       
       if (scheduleId) {
-        filteredData = filteredData.filter((record: any) => record.scheduleId === parseInt(scheduleId));
+        filteredData = filteredData.filter((record: MatchResult) => record.scheduleId === parseInt(scheduleId));
       }
       
       if (fraksi) {
-        filteredData = filteredData.filter((record: any) => record.fraksi === fraksi);
+        filteredData = filteredData.filter((record: MatchResult) => record.fraksi === fraksi);
       }
 
       return NextResponse.json({ 

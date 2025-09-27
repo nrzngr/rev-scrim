@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scrimFormSchema, type ScrimFormData } from '@/lib/validation';
+import { type ScrimFormData } from '@/lib/validation';
 import { createSchedule } from '@/lib/supabase';
 import { invalidateCache } from '@/app/api/sheets/fetch/route';
 import { createNotification } from '@/app/api/notifications/route';

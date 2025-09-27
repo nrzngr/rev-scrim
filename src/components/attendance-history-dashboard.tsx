@@ -7,18 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
   UsersIcon, 
-  AlertTriangleIcon, 
-  CheckCircleIcon, 
-  TrendingDownIcon,
-  TrendingUpIcon,
   SearchIcon,
-  BarChart3Icon, // Added for Data tab
-  InfoIcon,     // Added for Info tab
-  FilterIcon,   // Added for Teams tab
-  ClockIcon
+  FilterIcon
 } from "lucide-react";
-import { format, parseISO, isAfter, isBefore, subMonths, startOfWeek, endOfWeek, isThisWeek, isThisMonth } from "date-fns";
-import { id as localeId } from 'date-fns/locale';
+import { parseISO, isAfter, subMonths, startOfWeek, endOfWeek, isThisWeek, isThisMonth } from "date-fns";
 
 interface AttendanceRecord {
   id: number;
@@ -65,7 +57,6 @@ export function AttendanceHistoryDashboard() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerAttendanceStats[]>([]);
   const [fraksiStats, setFraksiStats] = useState<FraksiAttendanceStats[]>([]);
-  const [timePeriodStats, setTimePeriodStats] = useState<TimePeriodStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFraksi, setSelectedFraksi] = useState<"all" | "Fraksi 1" | "Fraksi 2">("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -274,7 +265,7 @@ export function AttendanceHistoryDashboard() {
       }
     }
 
-    setTimePeriodStats(periodData.slice(-8)); // Last 8 weeks
+    // timePeriodStats is not used in the component
 
   }, [attendanceRecords, selectedPeriod]);
 
@@ -305,16 +296,11 @@ export function AttendanceHistoryDashboard() {
     const totalUnavailable = filtered.reduce((sum, stat) => sum + stat.unavailable, 0);
     const averageAvailability = totalMatches > 0 ? Math.round(((totalMatches - totalUnavailable) / totalMatches) * 100) : 100;
     
-    const playersWithIssues = filtered.filter(stat => stat.availabilityRate < 80).length;
-    const playersWithGoodAttendance = filtered.filter(stat => stat.availabilityRate >= 90).length;
-    
     return {
       totalPlayers,
       totalMatches,
       totalUnavailable,
-      averageAvailability,
-      playersWithIssues,
-      playersWithGoodAttendance
+      averageAvailability
     };
   };
 

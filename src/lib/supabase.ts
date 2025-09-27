@@ -422,14 +422,14 @@ export async function validateDataIntegrity(): Promise<{
       duplicateMatchResults[key].push(record.id);
     });
 
-    const actualDuplicates = Object.entries(duplicateMatchResults)
-      .filter(([_, ids]) => ids.length > 1);
+    const duplicateCount = Object.entries(duplicateMatchResults)
+      .filter(([_, ids]) => ids.length > 1).length;
 
-    if (actualDuplicates.length > 0) {
+    if (duplicateCount > 0) {
       integrityIssues.push(
-        `Found ${actualDuplicates.length} schedules with duplicate match results`
+        `Found ${duplicateCount} schedules with duplicate match results`
       );
-      console.warn('Duplicate match results:', actualDuplicates);
+      console.warn('Duplicate match results:', duplicateMatchResults);
     }
 
     console.log('Data integrity validation completed');

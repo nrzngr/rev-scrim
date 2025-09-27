@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { PlusIcon, CalendarIcon, TrophyIcon, BarChart3Icon, UsersIcon } from "lucide-react";
+import { CalendarIcon, BarChart3Icon, UsersIcon } from "lucide-react";
 
 import { ResponsiveLayout } from "@/components/ui/responsive-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatePicker, TimePicker, FraksiSelect, MapMultiSelect } from "@/components/form-fields";
 import { ScheduleView } from "@/components/schedule-view";
 import { CalendarView } from "@/components/calendar-view";
@@ -17,10 +16,22 @@ import { MatchHistoryView } from "@/components/match-history-view";
 import { StatisticsDashboard } from "@/components/statistics-dashboard";
 import { AttendanceHistoryDashboard } from "@/components/attendance-history-dashboard";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { Loading, FullPageLoading } from "@/components/ui/loading";
-import { ErrorDisplay, SuccessDisplay } from "@/components/ui/error-display";
 import { scrimFormSchema, type ScrimFormData } from "@/lib/validation";
-import Image from "next/image";
+
+interface ScrimFormProps {
+  isSubmitting: boolean;
+  tanggalScrim: string;
+  lawan: string;
+  map: string[];
+  startMatch: string;
+  fraksi: "Fraksi 1" | "Fraksi 2" | undefined;
+  setTanggalScrim: (date: string) => void;
+  setLawan: (value: string) => void;
+  setMap: (value: string[]) => void;
+  setStartMatch: (value: string) => void;
+  setFraksi: (value: "Fraksi 1" | "Fraksi 2" | undefined) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}
 
 export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,16 +42,8 @@ export default function Home() {
   const [startMatch, setStartMatch] = useState<string>("");
   const [fraksi, setFraksi] = useState<"Fraksi 1" | "Fraksi 2" | undefined>(undefined);
 
-  // State and Ref for the "Tim Lawan" input (hybrid approach)
+  // State for the "Tim Lawan" input
   const [lawan, setLawan] = useState<string>("");
-  const lawanRef = useRef<HTMLInputElement>(null);
-
-  // Sync ref with state on initial render and when state changes programmatically
-  useEffect(() => {
-    if (lawanRef.current) {
-      lawanRef.current.value = lawan;
-    }
-  }, [lawan]);
 
   // Manual submission handler
   const onSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
@@ -59,16 +62,15 @@ export default function Home() {
     const validationResult = scrimFormSchema.safeParse(payload);
     if (!validationResult.success) {
       toast.error("Form tidak valid. Silakan periksa kembali input Anda.");
-      console.error("Validation Error:", validationResult.error.issues);
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
+
       const response = await fetch("/api/sheets/append", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,9 +104,111 @@ export default function Home() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, tanggalScrim, lawan, map, startMatch, fraksi]);
+  }, [isSubmitting]);
 
-  const ScrimForm = () => (
+  return (
+    <ResponsiveLayout>
+      {({ activeTab, setActiveTab }) => (
+        <>
+          {/* Main Content */}
+          <div className="space-y-6 lg:space-y-8">
+            {/* Tab Content */}
+            <div className="bg-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-4 lg:p-6">
+              {activeTab === "input" && (
+                <ErrorBoundary>
+                  <ScrimForm
+                    isSubmitting={isSubmitting}
+                    tanggalScrim={tanggalScrim}
+                    lawan={lawan}
+                    map={map}
+                    startMatch={startMatch}
+                    fraksi={fraksi}
+                    setTanggalScrim={setTanggalScrim}
+                    setLawan={setLawan}
+                    setMap={setMap}
+                    setStartMatch={setStartMatch}
+                    setFraksi={setFraksi}
+                    onSubmit={onSubmit}
+                  />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "schedule" && (
+                <ErrorBoundary>
+                  <ScheduleView />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "calendar" && (
+                <ErrorBoundary>
+                  <CalendarView />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "history" && (
+                <ErrorBoundary>
+                  <MatchHistoryView />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "statistics" && (
+                <ErrorBoundary>
+                  <StatisticsDashboard />
+                </ErrorBoundary>
+              )}
+
+              {activeTab === "attendance" && (
+                <ErrorBoundary>
+                  <AttendanceHistoryDashboard />
+                </ErrorBoundary>
+              )}
+            </div>
+
+            {/* Quick Actions - Mobile Optimized */}
+            <div className="lg:hidden">
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab("statistics")}
+                  className="h-12 text-xs"
+                >
+                  <BarChart3Icon className="h-4 w-4 mr-2" />
+                  Stats
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab("attendance")}
+                  className="h-12 text-xs"
+                >
+                  <UsersIcon className="h-4 w-4 mr-2" />
+                  Attendance
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </ResponsiveLayout>
+  );
+}
+
+function ScrimForm({
+  isSubmitting,
+  tanggalScrim,
+  lawan,
+  map,
+  startMatch,
+  fraksi,
+  setTanggalScrim,
+  setLawan,
+  setMap,
+  setStartMatch,
+  setFraksi,
+  onSubmit
+}: ScrimFormProps) {
+  return (
     <div className="space-y-6">
       {/* Mobile-Optimized Form Header */}
       <div className="text-center lg:text-left">
@@ -162,32 +266,21 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Opponent Section - Hybrid Controlled/Uncontrolled */}
+            {/* Opponent Section */}
             <div className="space-y-3">
               <label className="text-sm lg:text-base font-semibold text-white flex items-center gap-2">
                 <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
                 Tim Lawan
               </label>
               <div className="relative">
-                <Input 
-                  ref={lawanRef}
-                  value={lawan} // Controlled by state for persistence
-                  onChange={(e) => {
-                    // Update both the ref and state for immediate feedback and proper React behavior
-                    if (lawanRef.current) {
-                      lawanRef.current.value = e.target.value;
-                    }
-                    setLawan(e.target.value);
-                  }}
-                  onBlur={(e) => {
-                    // When the user leaves the input, ensure the state is synced
-                    setLawan(e.target.value);
-                  }}
-                  placeholder="Masukkan nama tim lawan" 
-                  className="h-12 lg:h-14 text-base bg-gray-800/50 border-gray-700 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl"
+                <Input
+                  value={lawan}
+                  onChange={(e) => setLawan(e.target.value)}
+                  placeholder="Masukkan nama tim lawan"
+                  className="h-12 lg:h-14 text-base bg-gray-800/50 border-gray-700 focus:border-orange-400 focus:ring-orange-400/20 rounded-xl pr-12"
                   disabled={isSubmitting}
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                   <div className="w-8 h-8 lg:w-10 lg:h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
                     <span className="text-orange-400 text-sm lg:text-base">👥</span>
                   </div>
@@ -267,79 +360,5 @@ export default function Home() {
         </CardContent>
       </Card>
     </div>
-  );
-
-  return (
-    <ResponsiveLayout>
-      {({ activeTab, setActiveTab }) => (
-        <>
-          {/* Main Content */}
-          <div className="space-y-6 lg:space-y-8">
-            {/* Tab Content */}
-            <div className="bg-gray-900/30 backdrop-blur-sm rounded-2xl border border-gray-800/50 p-4 lg:p-6">
-              {activeTab === "input" && (
-                <ErrorBoundary>
-                  <ScrimForm />
-                </ErrorBoundary>
-              )}
-              
-              {activeTab === "schedule" && (
-                <ErrorBoundary>
-                  <ScheduleView />
-                </ErrorBoundary>
-              )}
-              
-              {activeTab === "calendar" && (
-                <ErrorBoundary>
-                  <CalendarView />
-                </ErrorBoundary>
-              )}
-
-              {activeTab === "history" && (
-                <ErrorBoundary>
-                  <MatchHistoryView />
-                </ErrorBoundary>
-              )}
-
-              {activeTab === "statistics" && (
-                <ErrorBoundary>
-                  <StatisticsDashboard />
-                </ErrorBoundary>
-              )}
-
-              {activeTab === "attendance" && (
-                <ErrorBoundary>
-                  <AttendanceHistoryDashboard />
-                </ErrorBoundary>
-              )}
-            </div>
-
-            {/* Quick Actions - Mobile Optimized */}
-            <div className="lg:hidden">
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveTab("statistics")}
-                  className="h-12 text-xs"
-                >
-                  <BarChart3Icon className="h-4 w-4 mr-2" />
-                  Stats
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveTab("attendance")}
-                  className="h-12 text-xs"
-                >
-                  <UsersIcon className="h-4 w-4 mr-2" />
-                  Attendance
-                </Button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </ResponsiveLayout>
   );
 }

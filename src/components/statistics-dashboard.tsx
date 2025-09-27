@@ -9,16 +9,8 @@ import {
   TrendingUpIcon, 
   TrendingDownIcon, 
   TrophyIcon, 
-  CalendarIcon, 
   UsersIcon, 
-  TargetIcon,
-  BarChart3Icon,
-  PieChartIcon,
-  ActivityIcon,
-  CrosshairIcon, // For K/D
-  ZapIcon, // For Form/Streak
-  Gamepad2Icon, // For Map Performance
-  CrownIcon // For Win Streak
+  BarChart3Icon
 } from "lucide-react";
 import { format, parseISO, isAfter, isBefore, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { id as localeId } from 'date-fns/locale';

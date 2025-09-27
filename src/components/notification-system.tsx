@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BellIcon, XIcon, CheckIcon, ClockIcon, CalendarIcon, UsersIcon, TrophyIcon } from "lucide-react";
+import { BellIcon, XIcon, ClockIcon, CalendarIcon, UsersIcon, TrophyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, isToday, isTomorrow, isYesterday } from "date-fns";
 import { id as localeId } from 'date-fns/locale';

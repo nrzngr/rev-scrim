@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { notifications } from '../route';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Mark all notifications as read
     notifications.forEach((notification) => {
