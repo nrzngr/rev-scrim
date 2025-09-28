@@ -9,6 +9,13 @@ const attendanceCache = {
   ttl: 30000 // 30 seconds cache
 };
 
+// Function to clear cache
+function clearAttendanceCache() {
+  attendanceCache.data = null;
+  attendanceCache.timestamp = 0;
+  console.log('Attendance cache cleared');
+}
+
 // GET - Fetch attendance data
 export async function GET(request: NextRequest) {
   const now = Date.now();
@@ -183,7 +190,10 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
+    // Clear cache to ensure fresh data on next request
+    clearAttendanceCache();
+
     // Create notification for attendance update
     createNotification(
       'attendance_update',
@@ -197,10 +207,10 @@ export async function POST(request: NextRequest) {
         status: 'unavailable'
       }
     );
-    
-    return NextResponse.json({ 
-      ok: true, 
-      data: result.data 
+
+    return NextResponse.json({
+      ok: true,
+      data: result.data
     }, { status: 200 });
     
   } catch (error) {
@@ -279,7 +289,10 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
+    // Clear cache to ensure fresh data on next request
+    clearAttendanceCache();
+
     return NextResponse.json({ ok: true }, { status: 200 });
     
   } catch (error) {

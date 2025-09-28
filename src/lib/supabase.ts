@@ -216,9 +216,21 @@ export async function createAttendance(
       return { success: false, error: 'Player already marked with this status for this match' };
     }
 
+    // Generate unique ID based on fraksi
+    const { data: maxIdResult } = await supabaseAdmin
+      .from('attendance')
+      .select('id')
+      .eq('fraksi', attendance.fraksi)
+      .order('id', { ascending: false })
+      .limit(1);
+
+    const fraksiOffset = attendance.fraksi === "Fraksi 1" ? 3000 : 4000;
+    const maxId = maxIdResult && maxIdResult.length > 0 ? maxIdResult[0].id : fraksiOffset;
+    const newId = Math.max(maxId + 1, fraksiOffset + 1);
+
     const { data, error } = await supabaseAdmin
       .from('attendance')
-      .insert([attendance])
+      .insert([{ ...attendance, id: newId }])
       .select()
       .single();
 
@@ -301,9 +313,21 @@ export async function createMatchResult(
       return { success: false, error: 'Match result already exists for this schedule' };
     }
 
+    // Generate unique ID based on fraksi
+    const { data: maxIdResult } = await supabaseAdmin
+      .from('match_results')
+      .select('id')
+      .eq('fraksi', matchResult.fraksi)
+      .order('id', { ascending: false })
+      .limit(1);
+
+    const fraksiOffset = matchResult.fraksi === "Fraksi 1" ? 5000 : 6000;
+    const maxId = maxIdResult && maxIdResult.length > 0 ? maxIdResult[0].id : fraksiOffset;
+    const newId = Math.max(maxId + 1, fraksiOffset + 1);
+
     const { data, error } = await supabaseAdmin
       .from('match_results')
-      .insert([matchResult])
+      .insert([{ ...matchResult, id: newId }])
       .select()
       .single();
 

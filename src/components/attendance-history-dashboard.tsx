@@ -25,9 +25,7 @@ interface AttendanceRecord {
 interface PlayerAttendanceStats {
   playerName: string;
   totalMatches: number;
-  available: number;
   unavailable: number;
-  availabilityRate: number;
   mostCommonReason: string;
   lastStatus: "available" | "unavailable";
   lastMatchDate: string;
@@ -38,7 +36,7 @@ interface FraksiAttendanceStats {
   fraksi: string;
   totalMatches: number;
   totalPlayers: number;
-  averageAvailability: number;
+  totalUnavailable: number;
   mostUnavailablePlayer: string;
   leastUnavailablePlayer: string;
   commonReasons: Array<{ reason: string; count: number }>;
@@ -118,9 +116,7 @@ export function AttendanceHistoryDashboard() {
     Object.entries(playerRecords).forEach(([playerName, records]) => {
       const sortedRecords = records.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       const totalMatches = records.length;
-      const available = records.filter(r => r.status === "available").length;
       const unavailable = records.filter(r => r.status === "unavailable").length;
-      const availabilityRate = totalMatches > 0 ? Math.round((available / totalMatches) * 100) : 100;
 
       // Find most common reason for unavailability
       const reasonCounts: Record<string, number> = {};
@@ -146,9 +142,7 @@ export function AttendanceHistoryDashboard() {
       playerData[playerName] = {
         playerName,
         totalMatches,
-        available,
         unavailable,
-        availabilityRate,
         mostCommonReason,
         lastStatus: sortedRecords[0]?.status || "available",
         lastMatchDate: sortedRecords[0]?.timestamp || "",
@@ -156,8 +150,8 @@ export function AttendanceHistoryDashboard() {
       };
     });
 
-    setPlayerStats(Object.values(playerData).sort((a, b) => 
-      a.availabilityRate - b.availabilityRate || a.playerName.localeCompare(b.playerName)
+    setPlayerStats(Object.values(playerData).sort((a, b) =>
+      a.unavailable - b.unavailable || a.playerName.localeCompare(b.playerName)
     ));
 
     // Calculate fraksi statistics
@@ -174,11 +168,6 @@ export function AttendanceHistoryDashboard() {
       const totalPlayers = 30;
       const totalMatches = Math.max(...records.map(r => r.scheduleId));
       const totalUnavailable = records.filter(r => r.status === "unavailable").length;
-      // The total possible attendance records is totalPlayers * totalMatches
-      const totalPossibleRecords = totalPlayers * totalMatches;
-      const averageAvailability = totalPossibleRecords > 0 
-        ? Math.round(((totalPossibleRecords - totalUnavailable) / totalPossibleRecords) * 100) 
-        : 100;
 
       // Find most and least unavailable players
       const playerUnavailability: Record<string, number> = {};
@@ -205,7 +194,7 @@ export function AttendanceHistoryDashboard() {
         fraksi,
         totalMatches,
         totalPlayers: totalPlayers,
-        averageAvailability,
+        totalUnavailable,
         mostUnavailablePlayer: sortedByUnavailability[0]?.[0] || "",
         leastUnavailablePlayer: sortedByUnavailability[sortedByUnavailability.length - 1]?.[0] || "",
         commonReasons
@@ -289,21 +278,7 @@ export function AttendanceHistoryDashboard() {
     return filtered;
   };
 
-  const getOverallStats = () => {
-    const filtered = getFilteredPlayerStats();
-    const totalPlayers = filtered.length;
-    const totalMatches = filtered.reduce((sum, stat) => sum + stat.totalMatches, 0);
-    const totalUnavailable = filtered.reduce((sum, stat) => sum + stat.unavailable, 0);
-    const averageAvailability = totalMatches > 0 ? Math.round(((totalMatches - totalUnavailable) / totalMatches) * 100) : 100;
-    
-    return {
-      totalPlayers,
-      totalMatches,
-      totalUnavailable,
-      averageAvailability
-    };
-  };
-
+  
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -320,7 +295,6 @@ export function AttendanceHistoryDashboard() {
     );
   }
 
-  const overallStats = getOverallStats();
   const filteredPlayerStats = getFilteredPlayerStats();
 
   return (
@@ -450,7 +424,7 @@ export function AttendanceHistoryDashboard() {
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-xs sm:text-sm lg:text-base">
                           <span className="text-gray-400">
-                            {player.totalMatches} matches • {player.available} available • {player.unavailable} unavailable
+                            {player.totalMatches} matches • {player.unavailable} unavailable
                           </span>
                           {player.mostCommonReason && (
                             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
@@ -458,31 +432,6 @@ export function AttendanceHistoryDashboard() {
                               <span className="text-gray-300 break-words">{player.mostCommonReason}</span>
                             </div>
                           )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 flex-shrink-0">
-                        <div className="text-right min-w-0">
-                          <p className="text-xs text-gray-400">Availability Rate</p>
-                          <p className={`text-base sm:text-lg lg:text-xl font-semibold ${player.availabilityRate >= 90 ? 'text-green-400' : player.availabilityRate >= 80 ? 'text-yellow-400' : 'text-red-400'}`}>
-                            {player.availabilityRate}%
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 relative">
-                          <svg className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 transform -rotate-90" viewBox="0 0 36 36">
-                            <path
-                              d="M18 2.0845
-                                a 15.9155 15.9155 0 0 1 0 31.831
-                                a 15.9155 15.9155 0 0 1 0 -31.831"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              strokeDasharray={`${player.availabilityRate}, 100`}
-                              className={player.availabilityRate >= 90 ? 'text-green-400' : player.availabilityRate >= 80 ? 'text-yellow-400' : 'text-red-400'}
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-xs sm:text-sm font-medium text-white">{player.availabilityRate}%</span>
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -511,10 +460,8 @@ export function AttendanceHistoryDashboard() {
                         <p className="text-lg sm:text-xl font-bold text-white">{fraksi.totalPlayers}</p>
                       </div>
                       <div className="text-center p-3 bg-gray-700/50 rounded-lg">
-                        <p className="text-xs sm:text-sm text-gray-400">Avg Availability</p>
-                        <p className={`text-lg sm:text-xl font-bold ${fraksi.averageAvailability >= 85 ? 'text-green-400' : 'text-yellow-400'}`}>
-                          {fraksi.averageAvailability}%
-                        </p>
+                        <p className="text-xs sm:text-sm text-gray-400">Total Unavailable</p>
+                        <p className="text-lg sm:text-xl font-bold text-white">{fraksi.totalUnavailable}</p>
                       </div>
                     </div>
                     

@@ -54,6 +54,20 @@ export function AttendanceManager({ scheduleId, fraksi, onAttendanceChange }: At
     }
 
     setIsSubmitting(true);
+
+    // Optimistic update - add to UI immediately
+    const optimisticRecord: AttendanceRecord = {
+      id: Date.now(), // Temporary ID
+      scheduleId,
+      fraksi: fraksiName,
+      playerName: playerName.trim(),
+      status: 'unavailable',
+      reason: reason.trim() || '',
+      timestamp: new Date().toISOString()
+    };
+
+    setAttendanceRecords(prev => [...prev, optimisticRecord]);
+
     try {
       const response = await fetch('/api/attendance', {
         method: 'POST',
@@ -74,13 +88,28 @@ export function AttendanceManager({ scheduleId, fraksi, onAttendanceChange }: At
         toast.success('Berhasil menandai sebagai tidak bisa hadir');
         setPlayerName("");
         setReason("");
-        await fetchAttendance();
+
+        // Replace optimistic record with real one
+        setAttendanceRecords(prev =>
+          prev.map(record =>
+            record.id === optimisticRecord.id ? data.data : record
+          )
+        );
+
         onAttendanceChange?.();
       } else {
+        // Revert optimistic update on error
+        setAttendanceRecords(prev =>
+          prev.filter(record => record.id !== optimisticRecord.id)
+        );
         toast.error(data.error || 'Gagal menandai kehadiran');
       }
     } catch (error) {
       console.error('Error marking attendance:', error);
+      // Revert optimistic update on error
+      setAttendanceRecords(prev =>
+        prev.filter(record => record.id !== optimisticRecord.id)
+      );
       toast.error('Terjadi kesalahan saat menandai kehadiran');
     } finally {
       setIsSubmitting(false);
@@ -88,6 +117,19 @@ export function AttendanceManager({ scheduleId, fraksi, onAttendanceChange }: At
   };
 
   const handleMarkAvailable = async (playerNameToRemove: string) => {
+    // Find the record to remove for optimistic update
+    const recordToRemove = attendanceRecords.find(record =>
+      record.playerName.toLowerCase() === playerNameToRemove.toLowerCase()
+    );
+
+    if (!recordToRemove) return;
+
+    // Optimistic update - remove from UI immediately
+    const originalRecords = [...attendanceRecords];
+    setAttendanceRecords(prev =>
+      prev.filter(record => record.playerName.toLowerCase() !== playerNameToRemove.toLowerCase())
+    );
+
     try {
       const response = await fetch('/api/attendance', {
         method: 'DELETE',
@@ -105,13 +147,16 @@ export function AttendanceManager({ scheduleId, fraksi, onAttendanceChange }: At
 
       if (data.ok) {
         toast.success('Berhasil menandai sebagai bisa hadir kembali');
-        await fetchAttendance();
         onAttendanceChange?.();
       } else {
+        // Revert optimistic update on error
+        setAttendanceRecords(originalRecords);
         toast.error(data.error || 'Gagal mengupdate kehadiran');
       }
     } catch (error) {
       console.error('Error updating attendance:', error);
+      // Revert optimistic update on error
+      setAttendanceRecords(originalRecords);
       toast.error('Terjadi kesalahan saat mengupdate kehadiran');
     }
   };

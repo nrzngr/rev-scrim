@@ -174,17 +174,21 @@ export function ScheduleView() {
   };
 
   // Fetch attendance data
-  const fetchAttendanceData = async (abortSignal?: AbortSignal) => {
+  const fetchAttendanceData = async (abortSignal?: AbortSignal, forceRefresh = false) => {
     try {
-      const response = await fetch('/api/attendance', { signal: abortSignal });
-      
+      const url = forceRefresh ? '/api/attendance?refresh=true&t=' + Date.now() : '/api/attendance';
+      const response = await fetch(url, {
+        signal: abortSignal,
+        cache: forceRefresh ? 'no-store' : 'default'
+      });
+
       if (!response.ok) {
         console.error('Attendance fetch failed:', response.status, response.statusText);
         return;
       }
-      
+
       const data = await response.json();
-      
+
       if (data.ok && !abortSignal?.aborted) {
         setAttendanceRecords(data.data || []);
       }
@@ -257,10 +261,10 @@ export function ScheduleView() {
   const refreshAfterOperation = useCallback(async () => {
     // Refresh data after CRUD operations - force fresh data with delay
     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second for Google Sheets to propagate
-    
+
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(7);
-    
+
     try {
       const [fraksi1Response, fraksi2Response] = await Promise.all([
         fetch(`/api/sheets/fetch?fraksi=Fraksi 1&refresh=true&t=${timestamp}&r=${randomSuffix}`, {
@@ -290,7 +294,7 @@ export function ScheduleView() {
             fraksi1: fraksi1Data.data || [],
             fraksi2: fraksi2Data.data || []
           });
-          
+
           // Also refresh match results and attendance after operations
           await Promise.all([
             fetchMatchResults(),
@@ -300,6 +304,15 @@ export function ScheduleView() {
       }
     } catch (error) {
       console.error('Error refreshing after operation:', error);
+    }
+  }, []);
+
+  // Quick attendance refresh for immediate UI updates
+  const refreshAttendanceOnly = useCallback(async () => {
+    try {
+      await fetchAttendanceData(undefined, true); // Force refresh attendance data
+    } catch (error) {
+      console.error('Error refreshing attendance:', error);
     }
   }, []);
 
@@ -470,10 +483,12 @@ export function ScheduleView() {
   // Use refs to avoid dependency issues
   const loadingRef = useRef(loading);
   const refreshAfterOperationRef = useRef(refreshAfterOperation);
-  
+  const refreshAttendanceOnlyRef = useRef(refreshAttendanceOnly);
+
   // Update refs when values change
   loadingRef.current = loading;
   refreshAfterOperationRef.current = refreshAfterOperation;
+  refreshAttendanceOnlyRef.current = refreshAttendanceOnly;
 
   // Separate useEffect for auto-refresh listeners with stable dependencies
   useEffect(() => {
@@ -795,7 +810,7 @@ export function ScheduleView() {
                             <AttendanceManager
                               scheduleId={schedule.id}
                               fraksi={fraksi}
-                              onAttendanceChange={refreshAfterOperationRef.current}
+                              onAttendanceChange={refreshAttendanceOnlyRef.current}
                             />
                           </div>
 
